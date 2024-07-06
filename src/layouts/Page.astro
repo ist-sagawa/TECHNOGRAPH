@@ -1,0 +1,35 @@
+---
+import BaseHead from "../components/BaseHead.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import { SITE_TITLE, SITE_DESCRIPTION } from "../consts";
+const { pageClass, title, description, isFrontPage } = Astro.props;
+const params = Astro.params;
+---
+
+<!doctype html>
+<html lang="ja" dir="ltr">
+  <head>
+    <BaseHead
+      title={title ? `${title} - ${SITE_TITLE}` : SITE_TITLE}
+      description={description ?? SITE_DESCRIPTION}
+    />
+  </head>
+  <body x-data>
+    <Header isFrontPage={isFrontPage} />
+    <main id="swup" class="transition-main">
+      <slot />
+    </main>
+    <Footer />
+    <style>
+      main {
+        min-height: unset !important;
+        border-bottom: 1px solid #000;
+        width: 800px;
+      }
+      .transition-main {
+        transition: all 0.5s ease-in-out;
+      }
+    </style>
+  </body>
+</html>

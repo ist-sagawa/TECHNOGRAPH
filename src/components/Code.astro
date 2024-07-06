@@ -1,0 +1,14 @@
+---
+import hljs from "highlight.js";
+import "highlight.js/styles/tokyo-night-dark.css"; // 必要に応じてテーマをインポート
+const { code, language } = Astro.props.node;
+const highlightedCode = hljs.highlight(code, { language }).value;
+---
+
+<div class="hljs" set:html={highlightedCode} />
+
+<style>
+  .hljs {
+    padding: 10px;
+  }
+</style>

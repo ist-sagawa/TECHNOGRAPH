@@ -1,0 +1,36 @@
+---
+const params = Astro.params;
+---
+
+<header>
+  <h1>Astro Base</h1>
+  <ul>
+    <li><a href="/">TOP</a></li>
+    <li><a href="/about">ABOUT</a></li>
+  </ul>
+</header>
+
+<style lang="scss">
+  header {
+    height: 100px;
+    border-bottom: 1px solid #000;
+    display: flex;
+    gap: 10px;
+    ul {
+      display: flex;
+      gap: 10px;
+      a {
+        @include grid-center;
+        background-color: #000;
+        color: #fff;
+        font-size: 12px;
+        display: block;
+        padding: 10px;
+        border-radius: 4px;
+      }
+    }
+    @include mq(sp) {
+      display: none;
+    }
+  }
+</style>

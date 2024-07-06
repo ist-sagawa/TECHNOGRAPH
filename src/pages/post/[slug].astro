@@ -1,0 +1,65 @@
+---
+import Page from "@/layouts/Page.astro";
+import {
+  getPostBySlug,
+  getAllSlugs,
+  type Post,
+  imageUrlFor,
+} from "@/lib/Sanity";
+import { PortableText } from "astro-portabletext";
+import Image from "@/components/Image.astro";
+import Code from "@/components/Code.astro";
+import File from "@/components/File.astro";
+import Codepen from "@/components/Codepen.astro";
+import Youtube from "@/components/Youtube.astro";
+import Iframe from "@/components/Iframe.astro";
+
+// getStaticPaths関数を設定
+export async function getStaticPaths() {
+  const slugs = await getAllSlugs();
+  return slugs.map((slug) => ({
+    params: { slug: slug.current },
+  }));
+}
+
+// スラグ（slug）を取得
+const { slug } = Astro.params;
+const post: Post | null = await getPostBySlug(slug);
+const components = {
+  type: {
+    image: Image,
+    code: Code,
+    file: File,
+    iframe: Iframe,
+    codepen: Codepen,
+    youtube: Youtube,
+  },
+};
+
+if (!post) {
+  throw new Error(`Post not found for slug: ${slug}`);
+}
+
+// const value = Astro.props.value;
+---
+
+<Page>
+  <h1>{post.title}</h1>
+  {
+    post.mainImage && (
+      <img
+        class="main-image"
+        src={imageUrlFor(post.mainImage).url()}
+        alt={post.title}
+      />
+    )
+  }
+  <div>
+    <PortableText value={post.body} components={components} />
+  </div>
+</Page>
+<style>
+  .main-image {
+    max-width: 100%;
+  }
+</style>

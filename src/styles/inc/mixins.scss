@@ -1,0 +1,58 @@
+@mixin mq($breakpoint) {
+  @media #{map-get($breakpoints, $breakpoint)} {
+    @content;
+  }
+}
+
+/* Centering */
+
+@mixin grid-center{
+  display: grid;
+  place-items: center;
+}
+
+@mixin flex-center{
+  display: flex;
+  align-items: center;
+}
+
+@mixin abs-center{
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+}
+
+@mixin abs-center-top{
+  position: absolute;
+  top: 0;
+  left: 50%;
+  translate: -50% 0;
+}
+
+@mixin abs-center-bottom{
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  translate: -50% 0;
+}
+
+@mixin abs-center-left{
+  position: absolute;
+  top: 50%;
+  left: 0;
+  translate: 0 -50%;
+}
+
+@mixin abs-center-right{
+  position: absolute;
+  top: 50%;
+  right: 0;
+  translate: 0 -50%;
+}
+
+@mixin dashed-line($height: 1px, $borderWidth: 4px, $borderColor: currentColor, $intervalWidth: 2px, $intervalColor: transparent) {
+  background-image: linear-gradient(to right, $borderColor, $borderColor $borderWidth, $intervalColor $borderWidth, $intervalColor ($borderWidth + $intervalWidth));
+  background-size: ($borderWidth + $intervalWidth) $height;
+  background-repeat: repeat-x;
+}

@@ -1,0 +1,11 @@
+$pc_design_w: 1440;
+$sp_design_w: 768;
+
+@function get_pc_vw($size, $viewport: $pc_design_w) {
+  @return calc($size / $viewport * 100vw);
+}
+
+@function get_sp_vw($size, $viewport: $sp_design_w) {
+  @return calc($size / $viewport * 100vw);
+}
+

@@ -1,0 +1,11 @@
+:root {
+  --font-sans: -apple-system, BlinkMacSystemFont, "helvetica neue", helvetica, roboto, noto, "segoe ui", arial, sans-serif;
+  --font-mono: SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  /*  */
+  --pc-design-w: 1440px;
+  --sp-design-w: 375px;
+
+  --ease-quint-inout: cubic-bezier(0.86, 0, 0.07, 1);
+  --ease-quint-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+

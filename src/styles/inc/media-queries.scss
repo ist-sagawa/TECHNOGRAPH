@@ -1,0 +1,10 @@
+$breakpoints: (
+  "touch": '(hover: none) and (pointer: coarse)',
+  "stylus": '(hover: none) and (pointer: fine)',
+  "pointer": '(hover) and (pointer: coarse)',
+  "mouse": '(hover) and (pointer: fine)',
+  "sp": '(max-width: 767px)',
+  "tablet": '(min-width: 768px) and (max-width: 1023px)',
+  "pc": '(min-width: 1024px) and (max-width: 1440px)',
+  "large-pc": '(min-width: 1441px) and (max-width: 1919px)',
+) !default;

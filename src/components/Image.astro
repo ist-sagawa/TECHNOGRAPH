@@ -1,0 +1,21 @@
+---
+import { imageUrlFor, type ImageSource } from "@/lib/Sanity";
+
+export interface Props {
+  node: {
+    asset: ImageSource;
+    alt?: string | null | undefined;
+  };
+}
+
+const { asset, ...rest } = Astro.props.node;
+const image = imageUrlFor(asset).auto("format").fit("max").url();
+---
+
+<img src={image} {...rest} />
+
+<style>
+  img {
+    max-width: 100%;
+  }
+</style>

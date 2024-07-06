@@ -1,0 +1,28 @@
+---
+import { fileUrlFor } from "@/lib/Sanity";
+
+export interface Props {
+  node: {
+    asset: any;
+    description?: string | null | undefined;
+  };
+}
+
+const { asset, description } = Astro.props.node;
+const file = fileUrlFor(asset);
+---
+
+{
+  file?.extension === "mov" || file?.extension === "mp4" ? (
+    <video src={file?.url} controls />
+  ) : (
+    <a href={file?.url}>{description}</a>
+  )
+}
+
+<style>
+  video {
+    width: 100%;
+    height: auto;
+  }
+</style>
