@@ -7,8 +7,10 @@ const highlightedCode = hljs.highlight(code, { language }).value;
 
 <div class="hljs" set:html={highlightedCode} />
 
-<style>
+<style lang="scss">
   .hljs {
     padding: 10px;
+    @include mono;
+    font-size: 12px;
   }
 </style>

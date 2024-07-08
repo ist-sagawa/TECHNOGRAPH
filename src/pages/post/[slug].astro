@@ -1,5 +1,6 @@
 ---
 import Page from "@/layouts/Page.astro";
+import TopPostList from "@/components/TopPostList.astro";
 import {
   getPostBySlug,
   getAllSlugs,
@@ -7,12 +8,12 @@ import {
   imageUrlFor,
 } from "@/lib/Sanity";
 import { PortableText } from "astro-portabletext";
-import Image from "@/components/Image.astro";
-import Code from "@/components/Code.astro";
-import File from "@/components/File.astro";
-import Codepen from "@/components/Codepen.astro";
-import Youtube from "@/components/Youtube.astro";
-import Iframe from "@/components/Iframe.astro";
+import Image from "@/components/post/Image.astro";
+import Code from "@/components/post/Code.astro";
+import File from "@/components/post/File.astro";
+import Codepen from "@/components/post/Codepen.astro";
+import Youtube from "@/components/post/Youtube.astro";
+import Iframe from "@/components/post/Iframe.astro";
 
 // getStaticPaths関数を設定
 export async function getStaticPaths() {
@@ -44,22 +45,26 @@ if (!post) {
 ---
 
 <Page>
-  <h1>{post.title}</h1>
-  {
-    post.mainImage && (
-      <img
-        class="main-image"
-        src={imageUrlFor(post.mainImage).url()}
-        alt={post.title}
-      />
-    )
-  }
-  <div>
-    <PortableText value={post.body} components={components} />
+  <div class="top-post-list" slot="list">
+    <TopPostList />
+  </div>
+  <div class="content" slot="content">
+    <h1>{post.title}</h1>
+      {post.mainImage && (
+        <img
+          class="main-image"
+          src={imageUrlFor(post.mainImage).url()}
+          alt={post.title}
+        />
+      )}
+    <div>
+      <PortableText value={post.body} components={components} />
+    </div>
   </div>
 </Page>
 <style>
   .main-image {
     max-width: 100%;
+    margin-bottom: 30px;
   }
 </style>

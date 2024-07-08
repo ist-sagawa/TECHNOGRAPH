@@ -9,7 +9,8 @@
     "build:no-check": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "update": "npx -p npm-check-updates -c \"ncu -u && npm i\""
+    "update": "npx -p npm-check-updates -c \"ncu -u && npm i\"",
+    "deploy": "sanity deploy"
   },
   "dependencies": {
     "@astrojs/check": "^0.7.0",
@@ -38,13 +39,14 @@
     "astro-portabletext": "^0.10.0",
     "gsap": "^3.12.5",
     "highlight.js": "^11.9.0",
+    "p5": "^1.9.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-icons": "^5.2.1",
     "react-player": "^2.16.0",
     "sanity": "^3.49.0",
-    "sanity-plugin-youtube-input": "^0.2.0",
     "sass": "^1.77.6",
+    "styled-components": "^6.1.11",
     "swup": "^4.6.1",
     "tweakpane": "^4.0.4",
     "typescript": "^5.5.2"
@@ -52,6 +54,7 @@
   "devDependencies": {
     "@tweakpane/core": "^2.0.4",
     "@types/alpinejs": "^3.13.10",
+    "@types/p5": "^1.7.6",
     "vite-plugin-qrcode": "^0.2.3"
   }
 }

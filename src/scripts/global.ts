@@ -42,9 +42,7 @@ class MyObject extends Tweakable {
 }
 
 class App {
-  public myObject: MyObject;
   constructor() {
-    this.myObject = new MyObject();
     this.init();
   }
   init() {

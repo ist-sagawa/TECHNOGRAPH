@@ -16,16 +16,34 @@ const params = Astro.params;
     />
   </head>
   <body x-data>
-    <Header isFrontPage={isFrontPage} />
-    <main id="swup" class="transition-main">
-      <slot />
-    </main>
+    <div class="container">
+      <div class="left">
+        <Header isFrontPage={isFrontPage} />
+        <slot name="list" />
+      </div>
+      <div class="right">
+        <main id="swup" class="transition-main">
+          <slot name="content" />
+        </main>
+      </div>
+    </div>
     <Footer />
     <style>
+      .container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        .left,
+        .right {
+          height: 100vh;
+          overflow-y: auto;
+          position: relative;
+        }
+        .left {
+          border-right: 1px solid var(--color-technograph-blue);
+        }
+      }
       main {
         min-height: unset !important;
-        border-bottom: 1px solid #000;
-        width: 800px;
       }
       .transition-main {
         transition: all 0.5s ease-in-out;

@@ -1,0 +1,32 @@
+---
+const posts = Astro.props.posts;
+const dateArr = posts.map(
+  (post) =>
+    (new Date(post._updatedAt)).toLocaleDateString(
+      "ja-JP",
+      {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }
+    ).split("/").join(".")
+  );
+
+console.log(posts)
+
+---
+
+{
+  posts.map((post, index) => (
+    <li>
+      <a href={`/post/${post.slug.current}`}>
+        <span class="cat">{post.category.title}</span>
+        <span class="title">{post.title}</span>
+        <span class="date">{dateArr[index]}</span>
+      </a>
+    </li>
+  ))
+}
+
+<style>
+</style>

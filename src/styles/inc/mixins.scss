@@ -56,3 +56,7 @@
   background-size: ($borderWidth + $intervalWidth) $height;
   background-repeat: repeat-x;
 }
+
+@mixin mono{
+  font-family: "Space Mono","Noto Sans JP", monospace;
+}

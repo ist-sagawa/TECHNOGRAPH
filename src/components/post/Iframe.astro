@@ -1,0 +1,13 @@
+---
+const { html } = Astro.props.node;
+---
+
+<div class="iframeWrap" set:html={html} />
+
+<style global>
+  .iframeWrap iframe{
+    max-width: 100%;
+    width: 50vw;
+    height: 50vw;
+  }
+</style>

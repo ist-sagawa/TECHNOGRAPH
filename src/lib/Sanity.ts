@@ -34,6 +34,7 @@ export interface Post {
   slug: { current: string };
   body: PortableTextBlock[];
   mainImage?: { asset: { _ref: string } };
+  category?: { title: string };
 }
 
 export async function getPostBySlug(slug: string): Promise<Post | null> {
@@ -50,7 +51,16 @@ export async function getAllSlugs(): Promise<{ current: string }[]> {
 }
 
 export async function getPosts(): Promise<Post[]> {
-  const query = `*[_type == "post"]{title, slug, body, mainImage}`;
+  const query = `*[_type == "post"]{
+    title, 
+    slug, 
+    body, 
+    mainImage, 
+    _updatedAt, 
+    category->{
+      title
+    }
+  }`;
   const posts = await client.fetch(query);
   return posts;
 }

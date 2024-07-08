@@ -1,0 +1,17 @@
+---
+import { getPosts } from "@/lib/Sanity";
+import PostList from "@/components/PostList.astro";
+
+const posts = await getPosts();
+---
+
+<ul class="index-list">
+  <li>
+    <a href="/about">
+      <span class="cat">PAGE</span>
+      <span class="title">ABOUT</span>
+      <span class="date">2024.02.29</span>
+    </a>
+  </li>
+  <PostList posts={posts} />
+</ul>
