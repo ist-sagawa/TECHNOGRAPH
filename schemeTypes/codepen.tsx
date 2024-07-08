@@ -1,5 +1,4 @@
 import { defineType } from "sanity";
-import React from "react";
 
 const CodePenPreview = (value: any) => {
   const url = value.title;
@@ -14,10 +13,8 @@ const CodePenPreview = (value: any) => {
     <iframe
       height="370"
       style={{ width: '100%' }}
-      scrolling="no"
       title="CodePen Embed"
       src={embedUrl}
-      frameBorder="no"
       allowTransparency
       allowFullScreen
     />

@@ -17,7 +17,7 @@ console.log(posts)
 ---
 
 {
-  posts.map((post, index) => (
+  posts.map((post: any, index: number) => (
     <li>
       <a href={`/post/${post.slug.current}`}>
         <span class="cat">{post.category.title}</span>
