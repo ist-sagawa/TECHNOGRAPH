@@ -50,13 +50,15 @@ if (!post) {
   </div>
   <div class="content" slot="content">
     <h1>{post.title}</h1>
-      {post.mainImage && (
+    {
+      post.mainImage && (
         <img
           class="main-image"
           src={imageUrlFor(post.mainImage).url()}
           alt={post.title}
         />
-      )}
+      )
+    }
     <div>
       <PortableText value={post.body} components={components} />
     </div>

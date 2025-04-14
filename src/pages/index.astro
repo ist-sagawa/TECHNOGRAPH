@@ -1,6 +1,7 @@
 ---
 import Page from "@/layouts/Page.astro";
 import TopPostList from "@/components/TopPostList.astro";
+import logo from "/logo-plus.svg?raw";
 ---
 
 <Page title="TOP" pageClass="index">
@@ -8,15 +9,20 @@ import TopPostList from "@/components/TopPostList.astro";
     <TopPostList />
   </div>
   <div class="content" slot="content">
-    <img class="top-logo-plus" src="/logo-plus.svg" alt="top" />
-    <div id="canvas-wrap">
-
+    <div class="top-logo-plus">
+      <Fragment set:html={logo} />
     </div>
+    <div id="canvas-wrap"></div>
   </div>
 </Page>
-<style lang="scss">
+<style lang="scss" is:global>
   .top-logo-plus {
     @include abs-center;
+    z-index: 999;
+    svg {
+      width: 100%;
+      height: 100%;
+    }
   }
   #canvas-wrap {
     position: absolute;
@@ -24,7 +30,7 @@ import TopPostList from "@/components/TopPostList.astro";
     left: 0;
     width: 100%;
     height: 100%;
-    canvas{
+    canvas {
       position: absolute;
       top: 0;
       left: 0;
@@ -36,89 +42,98 @@ import TopPostList from "@/components/TopPostList.astro";
   import p5 from "p5";
 
   const sketch = (p: p5) => {
-    let baseNum = 0
-    let resetCount = -1
-    let searchCount = 50
-    let drawCount = 0
-    let xyArr = []
+    let baseNum = 0;
+    let resetCount = -1;
+    let searchCount = 50;
+    let startCount = 0;
+    let drawCount = 0;
+    let xyArr = [];
     p.setup = () => {
-      const canvas = p.createCanvas(window.innerWidth/2, window.innerHeight);
+      const canvas = p.createCanvas(window.innerWidth / 2, window.innerHeight);
       canvas.parent("#canvas-wrap");
     };
 
     p.draw = () => {
-      if(resetCount <= 0){
-        reset()
+      console.log(startCount, resetCount);
+      if (startCount > 0) {
+        startCount--;
+      } else {
+        if (resetCount <= 0) {
+          console.log("reset-------------");
+          reset();
+        } else {
+          let c = p.color(6, 0, 255);
+          p.fill(c);
+          p.noStroke();
+          // console.log(resetCount)
+          while (drawCount > 0 && resetCount > 0) {
+            const xy = getXY();
+            p.square(xy[0], xy[1], baseNum);
+            console.log("draw");
+            resetCount--;
+            drawCount--;
+          }
+          if (resetCount > 0) {
+            resetDrawCount();
+          }
+        }
       }
-      let c = p.color(6, 0, 255);
-      p.fill(c);
-      p.noStroke()
-      // console.log(resetCount)
-      while(drawCount > 0){
-        const xy = getXY();
-        p.square(
-          xy[0],
-          xy[1],
-          baseNum,
-        )
-        resetCount--
-        drawCount--
-      }
-      resetDrawCount()
     };
 
     function containsSubarray(arr, subarr) {
-      return arr.some(element => element[0] === subarr[0] && element[1] === subarr[1]);
+      return arr.some(
+        (element) => element[0] === subarr[0] && element[1] === subarr[1]
+      );
     }
 
-    function getXY(){
-      let returnArr = []
-      function getReturnArr(){
+    function getXY() {
+      let returnArr = [];
+      function getReturnArr() {
         returnArr = [
-          getDivNum(p.random(p.width), baseNum) ,
-          getDivNum(p.random(p.height), baseNum)
-        ]
+          getDivNum(p.random(p.width), baseNum),
+          getDivNum(p.random(p.height), baseNum),
+        ];
       }
-      getReturnArr()
-      while(containsSubarray(xyArr, returnArr)){
-        console.log(searchCount)
-        getReturnArr()
-        searchCount--
-        if(searchCount == 0){
-          reset()
-          return false
+      getReturnArr();
+      while (containsSubarray(xyArr, returnArr)) {
+        console.log(searchCount);
+        getReturnArr();
+        searchCount--;
+        if (searchCount == 0) {
+          reset();
+          return false;
         }
       }
-      resetSearchCount()
-      xyArr.push(returnArr)
-      return returnArr
+      resetSearchCount();
+      xyArr.push(returnArr);
+      return returnArr;
     }
 
     function getDivNum(val, num) {
-      return Math.floor(val / num) * num
+      return Math.floor(val / num) * num;
     }
 
-    function resetSearchCount(){
-      searchCount = 400
+    function resetSearchCount() {
+      searchCount = 400;
     }
     function resetDrawCount() {
-      if(resetCount > 200){
-        drawCount = Math.floor(500 / baseNum)
-      }else if(resetCount > 100){
-        drawCount = Math.floor(200 / baseNum)
-      }else{
-        drawCount = 1
+      if (resetCount > 300) {
+        drawCount = Math.floor(150 / baseNum);
+      } else if (resetCount > 50) {
+        drawCount = Math.floor(100 / baseNum);
+      } else {
+        drawCount = 1;
       }
     }
     function reset() {
-      p.background("#0600ff")
-      baseNum = Math.max(Math.floor(p.random(100)), 10)
-      resetCount = Math.ceil(p.width/baseNum) * Math.ceil(p.height/baseNum)
-      console.log("reset")
-      resetDrawCount()
-      resetSearchCount()
-      xyArr = []
-      p.clear()
+      p.background("#0600ff");
+      baseNum = Math.max(Math.floor(p.random(100)), 10);
+      resetCount = Math.ceil(p.width / baseNum) * Math.ceil(p.height / baseNum);
+      resetDrawCount();
+      resetSearchCount();
+      xyArr = [];
+      p.clear();
+      startCount = 60;
     }
   };
 
