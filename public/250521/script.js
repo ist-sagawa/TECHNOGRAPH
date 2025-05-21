@@ -10,7 +10,7 @@ let isDragging = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
 let lastChangeTime = 0;
-let changeInterval = 400; // ミリ秒単位（1秒）
+let changeInterval = 100; // ミリ秒単位（1秒）
 
 console.log("script.js");
 
@@ -69,7 +69,7 @@ function draw() {
     fukuwarai();
     lastChangeTime = currentTime;
     if(Math.random() > 0.5) {
-      changeInterval = random(100, 700); // 100ミリ秒から2秒の間でランダム
+      changeInterval = random(50, 300); // 100ミリ秒から2秒の間でランダム
     }
   }
   
