@@ -9,9 +9,8 @@ let currentPart = null;
 let isDragging = false;
 let dragOffsetX = 0;
 let dragOffsetY = 0;
-let timer = 0;
-
-let changeTimer = 100;
+let lastChangeTime = 0;
+let changeInterval = 400; // ミリ秒単位（1秒）
 
 console.log("script.js");
 
@@ -46,9 +45,8 @@ function preload() {
 
 function setup() {
   createCanvas(windowWidth, windowHeight);
-
+  lastChangeTime = millis();
   // 顔のパーツを描画
-
   fukuwarai();
 }
 
@@ -56,7 +54,6 @@ function fukuwarai() {
   background(0);
 
   // 顔のパーツを描画
-
   imageMode(CENTER);
   image(shuffle(mayu_l)[0], width * (0.35+Math.random()*0.1 - 0.05), height * (0.2+Math.random()*0.1 - 0.05), 300*Math.random()+50, 100*Math.random()+50);
   image(shuffle(mayu_r)[0], width * (0.65+Math.random()*0.1 - 0.05), height * (0.2+Math.random()*0.1 - 0.05), 300*Math.random()+50, 100*Math.random()+50);
@@ -67,14 +64,13 @@ function fukuwarai() {
 }
 
 function draw() {
-  timer++;
-  if (timer % changeTimer == 0) {
+  let currentTime = millis();
+  if (currentTime - lastChangeTime >= changeInterval) {
     fukuwarai();
-    timer = 0;
+    lastChangeTime = currentTime;
     if(Math.random() > 0.5) {
-      changeTimer = floor(random(1, 40));
+      changeInterval = random(100, 700); // 100ミリ秒から2秒の間でランダム
     }
-
   }
   
   // ドラッグ中のパーツを描画
