@@ -4,7 +4,7 @@ let cols, rows; // 分割数（動的に変更）
 let minDivisions = 1; // 最小分割数
 let maxDivisions = 15; // 最大分割数
 let colorPalette = []; // 色のパレット
-let texts = ['TECH', 'NO', 'GRAPH']; // 表示するテキスト
+let texts = ['2025','05', '22', 'COLOR', 'DIV']; // 表示するテキスト
 let cellTexts = []; // セルごとのテキスト情報を保存
 
 function preload() {
