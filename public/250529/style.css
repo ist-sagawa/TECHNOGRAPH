@@ -74,6 +74,10 @@ h1 {
   justify-content: center;
   flex-direction: column;
   text-align: center;
+  font-family:
+    system-ui,
+    -apple-system,
+    sans-serif;
 }
 
 .left {
