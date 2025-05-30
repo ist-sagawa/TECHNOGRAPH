@@ -15,19 +15,25 @@ const { title, description, isFrontPage } = Astro.props;
     />
   </head>
   <body x-data>
+    <h1><a href="/"><img src="/logo-plus.svg" alt="TECHNOGRAPH" /></a></h1>
     <div class="container">
-      <div class="left">
-        <Header isFrontPage={isFrontPage} />
-        <slot name="list" />
-      </div>
-      <div class="right">
-        <main id="swup" class="transition-main">
-          <slot name="content" />
-        </main>
-      </div>
+      <main id="swup" class="transition-main">
+        <a href="/about">ABOUT</a>
+        <slot name="content" />
+      </main>
     </div>
     <Footer />
     <style>
+      #swup {
+        padding: 0 20px;
+      }
+      h1 {
+        margin-bottom: 2em;
+      }
+      h1 img {
+        width: 400px;
+        height: 400px;
+      }
       .container {
         display: grid;
         grid-template-columns: 1fr 1fr;

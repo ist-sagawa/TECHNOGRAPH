@@ -3,6 +3,7 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
+  background-color: #fff;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -18,17 +19,28 @@ canvas {
 }
 
 h1 {
-  color: #fff;
+  color: #000;
   font-family:
     "Press Start 2P",
     "Space Mono",
     "Noto Sans JP",
     system-ui,
     -apple-system,
+    BlinkMacSystemFont,
+    "Open Sans",
+    "Helvetica Neue",
     sans-serif;
   font-weight: 100;
   font-style: normal;
   font-size: 12px;
   letter-spacing: 0.5em;
   z-index: 2;
+}
+
+/* レスポンシブ対応 */
+@media screen and (max-width: 768px) {
+  canvas {
+    width: 100vw;
+    height: 100vh;
+  }
 }

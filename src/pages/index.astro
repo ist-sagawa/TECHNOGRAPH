@@ -1,40 +1,97 @@
 ---
-import Page from "@/layouts/Page.astro";
-import TopPostList from "@/components/TopPostList.astro";
-import logo from "/logo-plus.svg?raw";
+import Page from "../layouts/Page.astro";
+
+const sketchFiles = import.meta.glob("./**/*.html", { eager: true, as: "raw" });
+
+let sketchesInfoProcessed = Object.entries(sketchFiles).map(
+  ([filePath, htmlContent]) => {
+    const parts = filePath.split("/");
+    if (
+      parts.length === 3 &&
+      parts[0] === "." &&
+      parts[2] === "index.html" &&
+      /^[0-9]{6}$/.test(parts[1])
+    ) {
+      const dirName = parts[1];
+      let title = dirName; // デフォルトはディレクトリ名
+      if (typeof htmlContent === "string") {
+        const titleMatch = htmlContent.match(/<title>([^<]+)<\/title>/i);
+        if (titleMatch && titleMatch[1]) {
+          title = titleMatch[1].trim();
+        }
+      }
+      return {
+        url: `/${dirName}/`,
+        name: title,
+        originalPath: filePath,
+      };
+    }
+    return null;
+  }
+);
+
+let sketchesInfo = sketchesInfoProcessed.filter(
+  (sketch): sketch is { url: string; name: string; originalPath: string } =>
+    sketch !== null
+);
+
+sketchesInfo.sort((a, b) => {
+  // nameが取得できたので、nameでソート（元々はディレクトリ名でのソートだったが、タイトルでのソートも意味があるか検討）
+  // ここでは引き続きディレクトリ名（originalPathから再取得）でソートする
+  const dirA = a.originalPath.split("/")[1];
+  const dirB = b.originalPath.split("/")[1];
+  return dirB.localeCompare(dirA);
+});
 ---
 
-<Page title="TOP" pageClass="index">
-  <div class="top-post-list" slot="list">
-    <TopPostList />
-  </div>
-  <div class="content" slot="content">
-    <div class="top-logo-plus">
-      <Fragment set:html={logo} />
-    </div>
+<Page title="Creative Coding Sketches">
+  <main slot="content">
+    <h2>Experiments</h2>
+    <ul>
+      {
+        sketchesInfo.map((sketch) => {
+          return (
+            <li>
+              <a href={sketch.url}>{sketch.name}</a>
+            </li>
+          );
+        })
+      }
+      {sketchesInfo.length === 0 && <p>No sketches found.</p>}
+    </ul>
     <div id="canvas-wrap"></div>
-  </div>
+  </main>
 </Page>
-<style lang="scss" is:global>
-  .top-logo-plus {
-    @include abs-center;
-    z-index: 999;
-    svg {
-      width: 100%;
-      height: 100%;
-    }
+
+<style>
+  main {
+    margin: auto;
   }
+  h2 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    line-height: 1;
+    margin-top: 2em;
+    margin-bottom: 2em;
+  }
+  ul {
+    list-style: none;
+    padding: 0;
+  }
+  li {
+    margin-bottom: 2em;
+    font-size: 12px;
+  }
+  a {
+    text-decoration: none;
+  }
+
   #canvas-wrap {
     position: absolute;
     top: 0;
-    left: 0;
-    width: 100%;
+    right: 0;
+    width: 70%;
     height: 100%;
-    canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-    }
   }
 </style>
 
@@ -47,29 +104,27 @@ import logo from "/logo-plus.svg?raw";
     let searchCount = 50;
     let startCount = 0;
     let drawCount = 0;
-    let xyArr = [];
+    let xyArr: number[][] = [];
     p.setup = () => {
-      const canvas = p.createCanvas(window.innerWidth / 2, window.innerHeight);
+      const canvas = p.createCanvas(window.innerWidth, window.innerHeight);
       canvas.parent("#canvas-wrap");
     };
 
     p.draw = () => {
-      console.log(startCount, resetCount);
       if (startCount > 0) {
         startCount--;
       } else {
         if (resetCount <= 0) {
-          console.log("reset-------------");
           reset();
         } else {
           let c = p.color(6, 0, 255);
           p.fill(c);
           p.noStroke();
-          // console.log(resetCount)
           while (drawCount > 0 && resetCount > 0) {
             const xy = getXY();
-            p.square(xy[0], xy[1], baseNum);
-            console.log("draw");
+            if (xy) {
+              p.square(xy[0], xy[1], baseNum);
+            }
             resetCount--;
             drawCount--;
           }
@@ -80,24 +135,23 @@ import logo from "/logo-plus.svg?raw";
       }
     };
 
-    function containsSubarray(arr, subarr) {
+    function containsSubarray(arr: number[][], subarr: number[]): boolean {
       return arr.some(
         (element) => element[0] === subarr[0] && element[1] === subarr[1]
       );
     }
 
-    function getXY() {
-      let returnArr = [];
-      function getReturnArr() {
+    function getXY(): number[] | false {
+      let returnArr: number[] = [];
+      function getReturnArrInternal() {
         returnArr = [
           getDivNum(p.random(p.width), baseNum),
           getDivNum(p.random(p.height), baseNum),
         ];
       }
-      getReturnArr();
+      getReturnArrInternal();
       while (containsSubarray(xyArr, returnArr)) {
-        console.log(searchCount);
-        getReturnArr();
+        getReturnArrInternal();
         searchCount--;
         if (searchCount == 0) {
           reset();
@@ -109,7 +163,7 @@ import logo from "/logo-plus.svg?raw";
       return returnArr;
     }
 
-    function getDivNum(val, num) {
+    function getDivNum(val: number, num: number): number {
       return Math.floor(val / num) * num;
     }
 
@@ -137,5 +191,28 @@ import logo from "/logo-plus.svg?raw";
     }
   };
 
-  new p5(sketch);
+  document.addEventListener("DOMContentLoaded", () => {
+    const targetNode = document.body;
+    const config = { childList: true, subtree: true };
+
+    const callback = function (
+      mutationsList: MutationRecord[],
+      observer: MutationObserver
+    ) {
+      const canvasWrap = document.getElementById("canvas-wrap");
+      if (canvasWrap) {
+        new p5(sketch);
+        observer.disconnect();
+      }
+    };
+
+    const observer = new MutationObserver(callback);
+
+    const canvasWrapInitial = document.getElementById("canvas-wrap");
+    if (canvasWrapInitial) {
+      new p5(sketch);
+    } else {
+      observer.observe(targetNode, config);
+    }
+  });
 </script>
