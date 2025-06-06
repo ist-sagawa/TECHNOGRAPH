@@ -1,0 +1,78 @@
+/* public/250604/style.css */
+@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap");
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-size: cover;
+}
+
+canvas {
+  display: block;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
+
+h1 {
+  color: #fff;
+  font-family:
+    "Press Start 2P",
+    "Space Mono",
+    "Noto Sans JP",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Open Sans",
+    "Helvetica Neue",
+    sans-serif;
+  font-weight: 100;
+  font-style: normal;
+  font-size: 12px;
+  letter-spacing: 0.5em;
+  z-index: 2;
+}
+
+/* レスポンシブ対応 */
+@media screen and (max-width: 768px) {
+  canvas {
+    width: 100vw;
+    height: 100vh;
+  }
+}
+
+#canvas-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+}
+
+#p5_loading {
+  background: #000;
+  font-family:
+    "Press Start 2P",
+    "Space Mono",
+    "Noto Sans JP",
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Open Sans",
+    "Helvetica Neue",
+    sans-serif;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  z-index: 2;
+  color: #fff;
+}
