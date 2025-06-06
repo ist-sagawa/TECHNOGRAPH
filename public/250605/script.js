@@ -34,7 +34,7 @@ function setup() {
   yellowLayer = new Riso('FLUORESCENTYELLOW');
 
   // 長方形のサイズをここで定義（gradientBufferと共通で使うため）
-  let rectW = floor(400);
+  let rectW = 500;
   let rectH = floor(height / 1);
   gradientBuffer = createGraphics(rectW, rectH);
   gradientBuffer.colorMode(HSB, 360, 100, 100, 100);
@@ -49,7 +49,7 @@ function draw() {
   clear();
 
   // 長方形の位置とサイズを再定義
-  let rectWidth = floor(400);
+  let rectWidth = 500;
   let rectHeight = floor(height / 1);
   let rectX = floor((width - rectWidth) / 2);
   let rectY = floor((height - rectHeight) / 2);
@@ -107,7 +107,7 @@ function draw() {
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
   // gradientBufferのサイズも追従
-  let rectW = floor(400);
+  let rectW = 500;
   let rectH = floor(height / 1);
   gradientBuffer.resizeCanvas(rectW, rectH);
 
