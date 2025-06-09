@@ -52,16 +52,7 @@ h1 {
 
 #p5_loading {
   background: #000;
-  font-family:
-    "Press Start 2P",
-    "Space Mono",
-    "Noto Sans JP",
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Open Sans",
-    "Helvetica Neue",
-    sans-serif;
+  font-family: "Press Start 2P", "Space Mono", sans-serif;
   position: absolute;
   top: 50%;
   left: 50%;
