@@ -8,7 +8,6 @@ let texts = ['2025','05', '22', 'COLOR', 'DIV']; // 表示するテキスト
 let cellTexts = []; // セルごとのテキスト情報を保存
 
 function preload() {
-  console.log("preload");
 }
 
 function setup() {

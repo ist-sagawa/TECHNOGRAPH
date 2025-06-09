@@ -6,10 +6,8 @@ let updateInterval = 10; // 更新間隔（ミリ秒）
 let cols = 20; // 固定の列数
 let rows = 20; // 固定の行数
 
-console.log("script.js");
 
 function preload() {
-  console.log("preload");
   // ローカルのフルーツ画像を読み込む
   for (let i = 1; i <= 8; i++) {
     fruits.push(loadImage(`/250520/Fruits${i}.png`));

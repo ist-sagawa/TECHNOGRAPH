@@ -138,10 +138,8 @@ window.addEventListener("DOMContentLoaded", async () => {
       const currentX = line.currentX;
       const currentY = line.currentY;
       // app.stage.removeChild(line.getLine()); // 必要なら有効化
-      console.log('lineNum',lineNum.length);
       
       for(let i = 0; i < lineNum; i++){
-        console.log('createBranch');
         createBranch(
           currentX,
           currentY,

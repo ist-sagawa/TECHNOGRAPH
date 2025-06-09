@@ -20,7 +20,6 @@ export const imageUrlFor = (source: ImageSource) =>
 
 // ファイル取得
 export const fileUrlFor = (source: any) => {
-  console.log(source);
   const fileAsset = getFileAsset(source._ref, client.config());
 
   return fileAsset ? fileAsset : null;

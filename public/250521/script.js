@@ -12,10 +12,8 @@ let dragOffsetY = 0;
 let lastChangeTime = 0;
 let changeInterval = 100; // ミリ秒単位（1秒）
 
-console.log("script.js");
 
 function preload() {
-  console.log("preload");
   // 顔のパーツを読み込む（2種類ずつからランダムに選択）
   mayu_l = [
     loadImage(`/250521/mayu_l_1.png`),

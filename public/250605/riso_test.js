@@ -12,7 +12,6 @@ function setup() {
 
   drawRiso(); // Riso描画を実行
 
-  console.log("setup() complete. Check DOM for canvases.");
 }
 
 function draw() {

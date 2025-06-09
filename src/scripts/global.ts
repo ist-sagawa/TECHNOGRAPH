@@ -52,7 +52,6 @@ class App {
 
   loaded() {
     $.addClass(document.body, 'loaded');
-    console.log('loaded');
   }
   resize() {
     window.winW = window.innerWidth;
