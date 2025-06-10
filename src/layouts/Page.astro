@@ -3,7 +3,7 @@ import BaseHead from "../components/BaseHead.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import { SITE_TITLE, SITE_DESCRIPTION } from "../consts";
-const { title, description, isFrontPage } = Astro.props;
+const { title, description, isFrontPage, showSplash } = Astro.props;
 ---
 
 <!doctype html>
@@ -15,14 +15,74 @@ const { title, description, isFrontPage } = Astro.props;
     />
   </head>
   <body x-data>
-    <h1><a href="/"><img src="/logo-plus.svg" alt="TECHNOGRAPH" /></a></h1>
-    <div class="container">
-      <div id="swup" class="transition-main">
-        <slot name="content" />
+    {
+      showSplash && (
+        <div id="splash-screen">
+          <video id="logo-video" autoplay muted playsinline>
+            <source src="/logo.mp4" type="video/mp4" />
+          </video>
+          <div id="skip-button">Click to skip</div>
+        </div>
+      )
+    }
+
+    <div id="main-content" class={showSplash ? "with-splash" : ""}>
+      <h1><a href="/"><img src="/logo-plus.svg" alt="TECHNOGRAPH" /></a></h1>
+      <div class="container">
+        <div id="swup" class="transition-main">
+          <slot name="content" />
+        </div>
       </div>
+      <Footer />
     </div>
-    <Footer />
     <style lang="scss">
+      #splash-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: #000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        flex-direction: column;
+
+        #logo-video {
+          object-fit: cover;
+        }
+
+        #skip-button {
+          position: absolute;
+          bottom: 30px;
+          right: 30px;
+          color: white;
+          font-size: 12px;
+          cursor: pointer;
+
+          &:hover {
+            background-color: var(--color-technograph-blue);
+            color: white;
+          }
+        }
+
+        &.hidden {
+          opacity: 0;
+          pointer-events: none;
+        }
+      }
+
+      #main-content {
+        &.with-splash {
+          opacity: 0;
+
+          &.visible {
+            opacity: 1;
+          }
+        }
+      }
+
       h1 {
         position: absolute;
         top: 0;
@@ -43,5 +103,48 @@ const { title, description, isFrontPage } = Astro.props;
         transition: all 0.5s ease-in-out;
       }
     </style>
+
+    <script>
+      // スプラッシュスクリーンの制御
+      document.addEventListener("DOMContentLoaded", () => {
+        const splashScreen = document.getElementById("splash-screen");
+        const mainContent = document.getElementById("main-content");
+        const logoVideo = document.getElementById(
+          "logo-video"
+        ) as HTMLVideoElement;
+        const skipButton = document.getElementById("skip-button");
+
+        // スプラッシュスクリーンが存在する場合のみ実行
+        if (!splashScreen || !mainContent) return;
+
+        // メインコンテンツを表示する関数
+        const showMainContent = () => {
+          splashScreen.classList.add("hidden");
+          mainContent.classList.add("visible");
+
+          // スプラッシュスクリーンを完全に削除（メモリ節約）
+          setTimeout(() => {
+            splashScreen.remove();
+          }, 500);
+        };
+
+        // 動画終了時の処理
+        logoVideo?.addEventListener("ended", showMainContent);
+
+        // スキップボタンまたは画面クリックでスキップ
+        splashScreen.addEventListener("click", showMainContent);
+        skipButton?.addEventListener("click", (e) => {
+          e.stopPropagation();
+          showMainContent();
+        });
+
+        // エスケープキーでスキップ
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") {
+            showMainContent();
+          }
+        });
+      });
+    </script>
   </body>
 </html>
