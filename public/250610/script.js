@@ -43,12 +43,15 @@ function draw() {
 
 // 新しい手を追加する関数
 function addNewHand() {
+  // マウスがウィンドウ内にあるかチェック
+  let isMouseInWindow = (mouseX >= 1 && mouseX <= width && mouseY >= 1 && mouseY <= height);
+  console.log(isMouseInWindow,mouseX,mouseY,width,height);
   let newHand = {
     x: random(-width*2, width*2),
     y: random(-height*2, height*2),
-    targetX: mouseX,
-    targetY: mouseY,
-    easing: random(0.002, 0.08), // それぞれ異なる追跡速度
+    targetX: isMouseInWindow ? mouseX : width / 2,
+    targetY: isMouseInWindow ? mouseY : height / 2,
+    easing: random(0.01, 0.08), // それぞれ異なる追跡速度
     size: random(60, 400), // それぞれ異なるサイズ
     delay: random(0, 30), // 反応の遅延
     offset: random(50, 400), // マウスからの距離オフセット
@@ -65,17 +68,24 @@ function addNewHand() {
 
 // 手の位置を更新する関数
 function updateHand(hand) {
+  // マウスがウィンドウ内にあるかチェック
+  let isMouseInWindow = (mouseX >= 1 && mouseX <= width && mouseY >= 1 && mouseY <= height);
+  
+  // 目標位置を設定（マウスがウィンドウ内にない場合は画面中央）
+  let targetMouseX = isMouseInWindow ? mouseX : width / 2;
+  let targetMouseY = isMouseInWindow ? mouseY : height / 2;
+  
   // マウス位置を目標位置として設定（オフセット付き）
-  let offsetAngle = atan2(mouseY - hand.y, mouseX - hand.x) + random(-0.5, 0.5);
-  hand.targetX = mouseX - cos(offsetAngle) * hand.offset;
-  hand.targetY = mouseY - sin(offsetAngle) * hand.offset;
+  let offsetAngle = atan2(targetMouseY - hand.y, targetMouseX - hand.x) + random(-0.5, 0.5);
+  hand.targetX = targetMouseX - cos(offsetAngle) * hand.offset;
+  hand.targetY = targetMouseY - sin(offsetAngle) * hand.offset;
   
   // イージングを使って手の位置を滑らかに移動
   hand.x += (hand.targetX - hand.x) * hand.easing;
   hand.y += (hand.targetY - hand.y) * hand.easing;
   
-  // 手からマウスへの角度を計算
-  hand.angle = atan2(mouseY - hand.y, mouseX - hand.x);
+  // 手から目標位置への角度を計算
+  hand.angle = atan2(targetMouseY - hand.y, targetMouseX - hand.x);
   
   // 時間経過による透明度の変化（古い手は徐々に薄くなる）
   // let age = millis() - hand.birthTime;

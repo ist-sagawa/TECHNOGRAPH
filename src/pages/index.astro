@@ -18,10 +18,13 @@ let sketchesInfoProcessed = Object.entries(sketchFiles).map(
         const titleMatch = htmlContent.match(/<title>([^<]+)<\/title>/i);
         if (titleMatch && titleMatch[1]) {
           title = titleMatch[1].trim();
+          // 日付部分（YYMMDD_）を除去
+          title = title.replace(/^\d{6}_/, "");
         }
       }
       return {
         url: `/${dirName}/`,
+        date: dirName,
         name: title,
         originalPath: filePath,
       };
@@ -31,13 +34,31 @@ let sketchesInfoProcessed = Object.entries(sketchFiles).map(
 );
 
 let sketchesInfo = sketchesInfoProcessed.filter(
-  (sketch): sketch is { url: string; name: string; originalPath: string } =>
-    sketch !== null
+  (
+    sketch
+  ): sketch is {
+    url: string;
+    date: string;
+    name: string;
+    originalPath: string;
+  } => sketch !== null
 );
 
+// 古い順にソート
 sketchesInfo.sort((a, b) => {
-  // nameが取得できたので、nameでソート（元々はディレクトリ名でのソートだったが、タイトルでのソートも意味があるか検討）
-  // ここでは引き続きディレクトリ名（originalPathから再取得）でソートする
+  const dirA = a.originalPath.split("/")[1];
+  const dirB = b.originalPath.split("/")[1];
+  return dirA.localeCompare(dirB);
+});
+
+// 古いものから順番にindexを振る
+const sketchesInfoWithIndex = sketchesInfo.map((sketch, index) => ({
+  ...sketch,
+  index: index + 1,
+}));
+
+// 表示は新しい順にソート
+sketchesInfoWithIndex.sort((a, b) => {
   const dirA = a.originalPath.split("/")[1];
   const dirB = b.originalPath.split("/")[1];
   return dirB.localeCompare(dirA);
@@ -46,173 +67,301 @@ sketchesInfo.sort((a, b) => {
 
 <Page title="Creative Coding Sketches">
   <main slot="content">
-    <h2>Experiments</h2>
-    <ul>
+    <div class="block about">
+      <h2><a href="/about">About</a></h2>
+    </div>
+    <div class="block experiments">
+      <h2>Experiments</h2>
+      <ul>
+        {
+          sketchesInfoWithIndex.map((sketch) => {
+            return (
+              <li>
+                <div class="num">({sketch.index})</div>
+                <div class="link">
+                  <a href={sketch.url}>
+                    <div class="date">@{sketch.date}</div>
+                    <div class="name">{sketch.name}</div>
+                  </a>
+                </div>
+              </li>
+            );
+          })
+        }
+        {sketchesInfoWithIndex.length === 0 && <p>No sketches found.</p>}
+      </ul>
+    </div>
+    <!-- <h2>Experiments</h2> -->
+
+    <div id="canvas-wrap"></div>
+
+    <!-- <div class="sketch-iframes">
       {
         sketchesInfo.map((sketch) => {
-          return (
-            <li>
-              <a href={sketch.url}>{sketch.name}</a>
-            </li>
-          );
+          return <iframe src={sketch.url} frameborder="0" />;
         })
       }
       {sketchesInfo.length === 0 && <p>No sketches found.</p>}
-    </ul>
-    <div id="canvas-wrap"></div>
+    </div> -->
   </main>
 </Page>
 
-<style>
+<style lang="scss">
   main {
     margin: auto;
+    font-size: 8px;
+    .about {
+      width: max(get_pc_vw(169), 169px);
+    }
+    .experiments {
+      width: 100%;
+    }
+    min-height: unset !important;
+    display: flex;
+    h2 {
+      font-size: max(get_pc_vw(8), 8px);
+      margin-bottom: max(get_pc_vw(38), 38px);
+    }
+    @include mq(sp) {
+      flex-direction: column;
+    }
   }
-  h2 {
+  /* h2 {
     font-size: 1.2rem;
     font-weight: 700;
     line-height: 1;
     margin-top: 2em;
     margin-bottom: 2em;
-  }
+  } */
   ul {
     list-style: none;
     padding: 0;
+    display: flex;
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 73px 97px;
   }
   li {
     margin-bottom: 2em;
-    font-size: 12px;
+    font-size: max(get_pc_vw(8), 8px);
+    display: flex;
+    width: max(get_pc_vw(193), 193px);
+    .num {
+      width: max(get_pc_vw(51), 51px);
+    }
+    .link {
+      width: max(get_pc_vw(142), 142px);
+      text-wrap: wrap;
+      a {
+        display: block;
+      }
+      .date {
+        margin-bottom: max(get_pc_vw(7), 7px);
+      }
+      .name {
+        line-break: anywhere;
+      }
+    }
+    @include mq(sp) {
+      width: 100%;
+      .link {
+        width: 100%;
+      }
+    }
   }
   a {
     text-decoration: none;
+  }
+
+  iframe {
+    width: 200px;
+    height: 200px;
+    display: none;
+  }
+
+  iframe h1 {
+    display: none;
   }
 
   #canvas-wrap {
     position: absolute;
     top: 0;
     right: 0;
-    width: 70%;
+    width: 100%;
     height: 100%;
+    z-index: -1;
   }
 </style>
 
 <script>
-  import p5 from "p5";
-
-  const sketch = (p: p5) => {
-    let baseNum = 0;
-    let resetCount = -1;
-    let searchCount = 50;
-    let startCount = 0;
-    let drawCount = 0;
-    let xyArr: number[][] = [];
-    p.setup = () => {
-      const canvas = p.createCanvas(window.innerWidth, window.innerHeight);
-      canvas.parent("#canvas-wrap");
-    };
-
-    p.draw = () => {
-      if (startCount > 0) {
-        startCount--;
-      } else {
-        if (resetCount <= 0) {
-          reset();
-        } else {
-          let c = p.color(6, 0, 255);
-          p.fill(c);
-          p.noStroke();
-          while (drawCount > 0 && resetCount > 0) {
-            const xy = getXY();
-            if (xy) {
-              p.square(xy[0], xy[1], baseNum);
-            }
-            resetCount--;
-            drawCount--;
-          }
-          if (resetCount > 0) {
-            resetDrawCount();
-          }
-        }
-      }
-    };
-
-    function containsSubarray(arr: number[][], subarr: number[]): boolean {
-      return arr.some(
-        (element) => element[0] === subarr[0] && element[1] === subarr[1]
-      );
-    }
-
-    function getXY(): number[] | false {
-      let returnArr: number[] = [];
-      function getReturnArrInternal() {
-        returnArr = [
-          getDivNum(p.random(p.width), baseNum),
-          getDivNum(p.random(p.height), baseNum),
-        ];
-      }
-      getReturnArrInternal();
-      while (containsSubarray(xyArr, returnArr)) {
-        getReturnArrInternal();
-        searchCount--;
-        if (searchCount == 0) {
-          reset();
-          return false;
-        }
-      }
-      resetSearchCount();
-      xyArr.push(returnArr);
-      return returnArr;
-    }
-
-    function getDivNum(val: number, num: number): number {
-      return Math.floor(val / num) * num;
-    }
-
-    function resetSearchCount() {
-      searchCount = 400;
-    }
-    function resetDrawCount() {
-      if (resetCount > 300) {
-        drawCount = Math.floor(150 / baseNum);
-      } else if (resetCount > 50) {
-        drawCount = Math.floor(100 / baseNum);
-      } else {
-        drawCount = 1;
-      }
-    }
-    function reset() {
-      p.background("#0600ff");
-      baseNum = Math.max(Math.floor(p.random(100)), 10);
-      resetCount = Math.ceil(p.width / baseNum) * Math.ceil(p.height / baseNum);
-      resetDrawCount();
-      resetSearchCount();
-      xyArr = [];
-      p.clear();
-      startCount = 60;
-    }
-  };
+  import * as $ from "@/scripts/modules/Util";
 
   document.addEventListener("DOMContentLoaded", () => {
-    const targetNode = document.body;
-    const config = { childList: true, subtree: true };
+    $.qsa(".experiments li a").forEach((a) => {
+      a.addEventListener("mouseenter", (e) => {
+        const target = e.target as HTMLAnchorElement;
+        const link = target?.href;
+        console.log(link);
+        let iframe;
+        if (link) {
+          // 既存のiframeをチェック
+          iframe = document.querySelector(
+            "iframe[data-preview]"
+          ) as HTMLIFrameElement;
 
-    const callback = function (
-      mutationsList: MutationRecord[],
-      observer: MutationObserver
-    ) {
-      const canvasWrap = document.getElementById("canvas-wrap");
-      if (canvasWrap) {
-        new p5(sketch);
-        observer.disconnect();
-      }
-    };
+          if (!iframe) {
+            // iframeが存在しない場合は新しく作成
+            iframe = document.createElement("iframe");
+            iframe.setAttribute("data-preview", "true");
+            iframe.style.width = "100vw";
+            iframe.style.height = "100vh";
+            iframe.style.position = "fixed";
+            iframe.style.top = "50%";
+            iframe.style.left = "50%";
+            iframe.style.translate = "-50% -50%";
+            iframe.style.border = "none";
+            iframe.style.zIndex = "-1";
+            iframe.style.overflow = "hidden";
+            iframe.style.pointerEvents = "none";
+            document.body.appendChild(iframe);
+          }
 
-    const observer = new MutationObserver(callback);
-
-    const canvasWrapInitial = document.getElementById("canvas-wrap");
-    if (canvasWrapInitial) {
-      new p5(sketch);
-    } else {
-      observer.observe(targetNode, config);
-    }
+          // srcを更新
+          iframe.src = link;
+          console.log(iframe);
+        }
+      });
+      a.addEventListener("mouseleave", (e) => {
+        const target = e.target as HTMLAnchorElement;
+        const link = target?.href;
+        console.log(link);
+        const iframe = document.querySelector(
+          "iframe[data-preview]"
+        ) as HTMLIFrameElement;
+        if (iframe) {
+          iframe.remove();
+        }
+      });
+    });
   });
+
+  // import p5 from "p5";
+
+  // const sketch = (p: p5) => {
+  //   let baseNum = 0;
+  //   let resetCount = -1;
+  //   let searchCount = 50;
+  //   let startCount = 0;
+  //   let drawCount = 0;
+  //   let xyArr: number[][] = [];
+  //   p.setup = () => {
+  //     const canvas = p.createCanvas(window.innerWidth, window.innerHeight);
+  //     canvas.parent("#canvas-wrap");
+  //   };
+
+  //   p.draw = () => {
+  //     if (startCount > 0) {
+  //       startCount--;
+  //     } else {
+  //       if (resetCount <= 0) {
+  //         reset();
+  //       } else {
+  //         let c = p.color(6, 0, 0);
+  //         p.fill(c);
+  //         p.noStroke();
+  //         while (drawCount > 0 && resetCount > 0) {
+  //           const xy = getXY();
+  //           if (xy) {
+  //             p.square(xy[0], xy[1], baseNum);
+  //           }
+  //           resetCount--;
+  //           drawCount--;
+  //         }
+  //         if (resetCount > 0) {
+  //           resetDrawCount();
+  //         }
+  //       }
+  //     }
+  //   };
+
+  //   function containsSubarray(arr: number[][], subarr: number[]): boolean {
+  //     return arr.some(
+  //       (element) => element[0] === subarr[0] && element[1] === subarr[1]
+  //     );
+  //   }
+
+  //   function getXY(): number[] | false {
+  //     let returnArr: number[] = [];
+  //     function getReturnArrInternal() {
+  //       returnArr = [
+  //         getDivNum(p.random(p.width), baseNum),
+  //         getDivNum(p.random(p.height), baseNum),
+  //       ];
+  //     }
+  //     getReturnArrInternal();
+  //     while (containsSubarray(xyArr, returnArr)) {
+  //       getReturnArrInternal();
+  //       searchCount--;
+  //       if (searchCount == 0) {
+  //         reset();
+  //         return false;
+  //       }
+  //     }
+  //     resetSearchCount();
+  //     xyArr.push(returnArr);
+  //     return returnArr;
+  //   }
+
+  //   function getDivNum(val: number, num: number): number {
+  //     return Math.floor(val / num) * num;
+  //   }
+
+  //   function resetSearchCount() {
+  //     searchCount = 400;
+  //   }
+  //   function resetDrawCount() {
+  //     if (resetCount > 300) {
+  //       drawCount = Math.floor(150 / baseNum);
+  //     } else if (resetCount > 50) {
+  //       drawCount = Math.floor(100 / baseNum);
+  //     } else {
+  //       drawCount = 1;
+  //     }
+  //   }
+  //   function reset() {
+  //     p.background("#0600ff");
+  //     baseNum = Math.max(Math.floor(p.random(100)), 10);
+  //     resetCount = Math.ceil(p.width / baseNum) * Math.ceil(p.height / baseNum);
+  //     resetDrawCount();
+  //     resetSearchCount();
+  //     xyArr = [];
+  //     p.clear();
+  //     startCount = 60;
+  //   }
+  // };
+
+  // document.addEventListener("DOMContentLoaded", () => {
+  //   const targetNode = document.body;
+  //   const config = { childList: true, subtree: true };
+
+  //   const callback = function (
+  //     mutationsList: MutationRecord[],
+  //     observer: MutationObserver
+  //   ) {
+  //     const canvasWrap = document.getElementById("canvas-wrap");
+  //     if (canvasWrap) {
+  //       new p5(sketch);
+  //       observer.disconnect();
+  //     }
+  //   };
+
+  //   const observer = new MutationObserver(callback);
+
+  //   const canvasWrapInitial = document.getElementById("canvas-wrap");
+  //   if (canvasWrapInitial) {
+  //     new p5(sketch);
+  //   } else {
+  //     observer.observe(targetNode, config);
+  //   }
+  // });
 </script>

@@ -1,3 +1,6 @@
+let mouseX = window.innerWidth / 2;
+let mouseY = window.innerHeight / 2;
+
 function setup() {
   createCanvas(windowWidth, windowHeight);
   background(245);

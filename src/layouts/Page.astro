@@ -17,38 +17,27 @@ const { title, description, isFrontPage } = Astro.props;
   <body x-data>
     <h1><a href="/"><img src="/logo-plus.svg" alt="TECHNOGRAPH" /></a></h1>
     <div class="container">
-      <main id="swup" class="transition-main">
-        <a href="/about">ABOUT</a>
+      <div id="swup" class="transition-main">
         <slot name="content" />
-      </main>
+      </div>
     </div>
     <Footer />
-    <style>
-      #swup {
-        padding: 0 20px;
-      }
+    <style lang="scss">
       h1 {
-        margin-bottom: 2em;
-      }
-      h1 img {
-        width: 400px;
-        height: 400px;
+        position: absolute;
+        top: 0;
+        left: 0;
+        img {
+          width: max(get_pc_vw(173), 173px);
+          height: max(get_pc_vw(173), 173px);
+        }
       }
       .container {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        .left,
-        .right {
-          height: 100vh;
-          overflow-y: auto;
-          position: relative;
+        padding-top: max(get_pc_vw(241), 241px);
+        padding-left: get_pc_vw(115);
+        h2 {
+          font-size: max(get_pc_vw(8), 8px);
         }
-        .left {
-          border-right: 1px solid var(--color-technograph-blue);
-        }
-      }
-      main {
-        min-height: unset !important;
       }
       .transition-main {
         transition: all 0.5s ease-in-out;
