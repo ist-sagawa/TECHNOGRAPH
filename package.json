@@ -10,7 +10,9 @@
     "preview": "astro preview",
     "astro": "astro",
     "update": "npx -p npm-check-updates -c \"ncu -u && npm i\"",
-    "deploy": "sanity deploy"
+    "deploy": "sanity deploy",
+    "optimize-images": "node scripts/optimize-images.js",
+    "optimize:dry-run": "node scripts/optimize-images.js --dry-run"
   },
   "dependencies": {
     "@astrojs/check": "^0.7.0",
@@ -55,6 +57,7 @@
     "@tweakpane/core": "^2.0.4",
     "@types/alpinejs": "^3.13.10",
     "@types/p5": "^1.7.6",
+    "sharp": "^0.34.2",
     "vite-plugin-qrcode": "^0.2.3"
   }
 }

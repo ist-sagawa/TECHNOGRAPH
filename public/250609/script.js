@@ -10,7 +10,7 @@ function preload() {
     '/250609/shader.vert',
     '/250609/shader.frag'
   );
-  animalImage = loadImage('/250609/man.png');
+  animalImage = loadImage('/250609/man.webp');
 }
 
 function setup() {

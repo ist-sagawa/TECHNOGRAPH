@@ -6,7 +6,7 @@ let lastHandSpawnTime = 0;
 
 function preload() {
   // 手の画像を読み込み
-  handImg = loadImage('/250610/hand.png');
+  handImg = loadImage('/250610/hand.webp');
 }
 
 function setup() {

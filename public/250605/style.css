@@ -9,7 +9,7 @@ body {
   align-items: center;
   min-height: 100vh;
   background-size: cover;
-  background-image: url(./paper.png);
+  background-image: url(./paper.webp);
 }
 
 canvas {

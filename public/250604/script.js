@@ -15,9 +15,9 @@ let animationPhaseEndTime = 0; // 現在のグリッドインターバルにお�
 const animationDurationRatio = 0.2; // gridChangeIntervalに対するアニメーション期間の割合 (例: 20%)
 
 function preload() {
-  // 画像のパスは /japan.png と仮定 (publicフォルダ直下)
+  // 画像のパスは /japan.webp と仮定 (publicフォルダ直下)
   // もし異なる場合は、正しいパスに変更してください。
-  img = loadImage('/250604/japan.jpg');
+  img = loadImage('/250604/japan.webp');
   theShader = loadShader('/250604/shader.vert', '/250604/shader.frag');
 }
 

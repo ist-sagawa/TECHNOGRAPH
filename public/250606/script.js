@@ -9,15 +9,15 @@ let timer = 0;
 let distortionDirection;
 
 const imageFiles = [
-  'animal_01.jpg',
-  'animal_02.jpg',
-  'animal_03.jpg',
-  'animal_04.jpg',
-  'animal_05.jpg',
-  'animal_06.jpg',
-  'animal_07.jpg',
-  'animal_08.jpg',
-  'animal_09.jpg'
+  'animal_01.webp',
+  'animal_02.webp',
+  'animal_03.webp',
+  'animal_04.webp',
+  'animal_05.webp',
+  'animal_06.webp',
+  'animal_07.webp',
+  'animal_08.webp',
+  'animal_09.webp'
 ];
 
 function preload() {

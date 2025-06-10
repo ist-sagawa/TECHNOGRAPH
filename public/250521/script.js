@@ -16,28 +16,28 @@ let changeInterval = 100; // ミリ秒単位（1秒）
 function preload() {
   // 顔のパーツを読み込む（2種類ずつからランダムに選択）
   mayu_l = [
-    loadImage(`/250521/mayu_l_1.png`),
-    loadImage(`/250521/mayu_l_2.png`),
+    loadImage(`/250521/mayu_l_1.webp`),
+    loadImage(`/250521/mayu_l_2.webp`),
   ]
   mayu_r = [
-    loadImage(`/250521/mayu_r_1.png`),
-    loadImage(`/250521/mayu_r_2.png`),
+    loadImage(`/250521/mayu_r_1.webp`),
+    loadImage(`/250521/mayu_r_2.webp`),
   ]
   eye_l = [
-    loadImage(`/250521/eye_l_1.png`),
-    loadImage(`/250521/eye_l_2.png`),
+    loadImage(`/250521/eye_l_1.webp`),
+    loadImage(`/250521/eye_l_2.webp`),
   ]
   eye_r = [
-    loadImage(`/250521/eye_r_1.png`),
-    loadImage(`/250521/eye_r_2.png`),
+    loadImage(`/250521/eye_r_1.webp`),
+    loadImage(`/250521/eye_r_2.webp`),
   ]
   nose = [
-    loadImage(`/250521/nose_1.png`),
-    loadImage(`/250521/nose_2.png`),
+    loadImage(`/250521/nose_1.webp`),
+    loadImage(`/250521/nose_2.webp`),
   ]
   mouth = [
-    loadImage(`/250521/mouse_1.png`),
-    loadImage(`/250521/mouse_2.png`),
+    loadImage(`/250521/mouse_1.webp`),
+    loadImage(`/250521/mouse_2.webp`),
   ]
 }
 
