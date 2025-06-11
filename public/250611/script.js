@@ -138,7 +138,7 @@ function generateSingleEmblem() {
   }
   
   // 最小限の点数を保証（距離制約を緩めてでも）
-  while (points.length < 5) {
+  while (points.length < 8) {
     points.push({
       x: floor(random(workWidth)), 
       y: floor(random(workHeight))
@@ -147,7 +147,7 @@ function generateSingleEmblem() {
   
   // 線の数を増やして接続性を向上
   if (points.length > 1) {
-    let minConnections = max(5, points.length); // 最小線数を保証
+    let minConnections = max(8, points.length); // 最小線数を保証
     let maxConnections = points.length * 2;
     let numConnections = floor(random(minConnections, maxConnections));
     
@@ -183,10 +183,35 @@ function generateSingleEmblem() {
     }
   }
   
+  // ランダムに塗りつぶし領域を生成
+  let fills = [];
+  let numFills = floor(random(2, 5)); // 2〜4個の塗りつぶし領域
+  
+  for (let i = 0; i < numFills; i++) {
+    // 3つの点をランダムに選んで三角形を作る
+    if (points.length >= 3) {
+      let p1 = floor(random(points.length));
+      let p2 = floor(random(points.length));
+      let p3 = floor(random(points.length));
+      
+      if (p1 !== p2 && p2 !== p3 && p1 !== p3) {
+        fills.push({
+          points: [p1, p2, p3],
+          color: {
+            r: 6,    // 青色 (#0600ff)
+            g: 0,
+            b: 255
+          }
+        });
+      }
+    }
+  }
+  
   return {
     symmetryType: symmetryType,
     points: points,
-    lines: lines
+    lines: lines,
+    fills: fills
   };
 }
 
@@ -207,6 +232,30 @@ function drawSingleEmblem(emblem, offsetX, offsetY) {
   // for (let i = 0; i <= gridSize; i++) {
   //   line(0, i * cellSize, emblemSize, i * cellSize);
   // }
+  
+  // 塗りつぶし領域を描画
+  for (let fillArea of emblem.fills) {
+    let p1 = emblem.points[fillArea.points[0]];
+    let p2 = emblem.points[fillArea.points[1]];
+    let p3 = emblem.points[fillArea.points[2]];
+    
+    fill(fillArea.color.r, fillArea.color.g, fillArea.color.b, fillArea.color.a);
+    noStroke();
+    
+    // 元の三角形を描画
+    drawFill(p1.x, p1.y, p2.x, p2.y, p3.x, p3.y);
+    
+    // 対称性に応じて対称な塗りつぶしを描画
+    if (emblem.symmetryType === 0) { // 左右対称
+      drawFill(16 - p1.x, p1.y, 16 - p2.x, p2.y, 16 - p3.x, p3.y);
+    } else if (emblem.symmetryType === 1) { // 上下対称
+      drawFill(p1.x, 16 - p1.y, p2.x, 16 - p2.y, p3.x, 16 - p3.y);
+    } else { // 上下左右対称
+      drawFill(16 - p1.x, p1.y, 16 - p2.x, p2.y, 16 - p3.x, p3.y); // 左右対称
+      drawFill(p1.x, 16 - p1.y, p2.x, 16 - p2.y, p3.x, 16 - p3.y); // 上下対称
+      drawFill(16 - p1.x, 16 - p1.y, 16 - p2.x, 16 - p2.y, 16 - p3.x, 16 - p3.y); // 上下左右対称
+    }
+  }
   
   // 線の描画
   stroke("#0600ff");
@@ -266,4 +315,15 @@ function drawPoint(x, y) {
   let screenX = x * cellSize;
   let screenY = y * cellSize;
   circle(screenX, screenY, 1); // 点のサイズを小さく
+}
+
+function drawFill(x1, y1, x2, y2, x3, y3) {
+  let screenX1 = x1 * cellSize;
+  let screenY1 = y1 * cellSize;
+  let screenX2 = x2 * cellSize;
+  let screenY2 = y2 * cellSize;
+  let screenX3 = x3 * cellSize;
+  let screenY3 = y3 * cellSize;
+  
+  triangle(screenX1, screenY1, screenX2, screenY2, screenX3, screenY3);
 }
