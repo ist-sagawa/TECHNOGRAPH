@@ -2,16 +2,16 @@
 const CONFIG = {
   // 基本設定
   maxLines: 40,           // 最大線数
-  frameRate: 30,          // フレームレート
+  frameRate: 15,          // フレームレート
   
   // エリア設定
-  areaRadiusRatio: 0.4,   // 画面サイズに対するエリア半径の比率
+  areaRadiusRatio: 0.3,   // 画面サイズに対するエリア半径の比率
   areaMargin: 30,         // エリア境界からのマージン
   boundaryMargin: 5,      // 境界衝突判定のマージン
   
   // 線の動作設定
-  speedMin: 9,            // 線の最小速度
-  speedMax: 24,           // 線の最大速度
+  speedMin: 10,            // 線の最小速度
+  speedMax: 20,           // 線の最大速度
   maxAttempts: 24,        // 回避方向の最大試行回数
   
   // 衝突判定設定
@@ -23,8 +23,8 @@ const CONFIG = {
   
   // リセット・追加設定
   resetLineCount: 1000,         // リセットする線数
-  addNewLinesThreshold: 10,     // 新しい線を追加する閾値
-  newLinesToAdd: 5,            // 追加する線数
+  addNewLinesThreshold: 15,     // 新しい線を追加する閾値
+  newLinesToAdd: 10,            // 追加する線数
   maxTotalLines: 120,          // 最大総線数（maxLines * 3）
   minLineLength: 10,           // 削除しない最小線長
   
