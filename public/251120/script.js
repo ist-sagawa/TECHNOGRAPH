@@ -528,6 +528,35 @@ function fullReset() {
   frameCount = 0;
 }
 
+// マウス/タッチイベント
+function mousePressed() {
+  // アニメーションを停止
+  isAnimating = false;
+  noLoop();
+  redraw();
+}
+
+function mouseReleased() {
+  // アニメーションを再開
+  isAnimating = true;
+  loop();
+}
+
+function touchStarted() {
+  // タッチでアニメーションを停止
+  isAnimating = false;
+  noLoop();
+  redraw();
+  return false; // デフォルトのタッチ動作を防ぐ
+}
+
+function touchEnded() {
+  // タッチを離すとアニメーションを再開
+  isAnimating = true;
+  loop();
+  return false; // デフォルトのタッチ動作を防ぐ
+}
+
 // キーボードイベント
 function keyPressed() {
   // スペースキーでグリッドを再生成
