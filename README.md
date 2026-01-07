@@ -48,7 +48,29 @@ All commands are run from the root of the project, from a terminal:
 | `npm run preview`         | Preview your build locally, before deploying     |
 | `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
 | `npm run astro -- --help` | Get help using the Astro CLI                     |
+| `npm run new ...`         | Create a new sketch (e.g. `npm run new Title`)   |
+| `npm run change ...`      | Update a sketch (e.g. `npm run change 251120 NewTitle`) |
 
 ## 👀 Want to learn more?
 
 Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+
+
+---
+
+
+# 使い方まとめ
+## 🆕 新規作成 (npm run new)
+
+```
+npm run new タイトル （今日の日付で作成）
+npm run new 251120 タイトル （日付指定で作成） ※すでにフォルダがある場合はエラーになります。
+```
+
+## 🔄 変更 (npm run change)
+
+```
+npm run change 251120 新しいタイトル （タイトルのみ変更）
+npm run change 251120 251121 （日付/フォルダ名変更）
+npm run change 251120 251121 新しいタイトル （両方変更）
+```

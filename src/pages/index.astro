@@ -1,26 +1,37 @@
 ---
 import Page from "../layouts/Page.astro";
 
-const sketchFiles = import.meta.glob("./**/*.html", { eager: true, as: "raw" });
+const sketchFiles = import.meta.glob(["./**/*.html", "./**/*.astro"], {
+  eager: true,
+  as: "raw",
+});
 
 let sketchesInfoProcessed = Object.entries(sketchFiles).map(
-  ([filePath, htmlContent]) => {
+  ([filePath, content]) => {
     const parts = filePath.split("/");
     if (
       parts.length === 3 &&
       parts[0] === "." &&
-      parts[2] === "index.html" &&
+      (parts[2] === "index.html" || parts[2] === "index.astro") &&
       /^[0-9]{6}$/.test(parts[1])
     ) {
       const dirName = parts[1];
-      let title = dirName; // デフォルトはディレクトリ名
-      if (typeof htmlContent === "string") {
-        const titleMatch = htmlContent.match(/<title>([^<]+)<\/title>/i);
-        if (titleMatch && titleMatch[1]) {
-          title = titleMatch[1].trim();
-          // 日付部分（YYMMDD_）を除去
-          title = title.replace(/^\d{6}_/, "");
+      let title = dirName; // Default to directory name
+
+      if (typeof content === "string") {
+        // Try to find title in HTML tag
+        const titleMatchHtml = content.match(/<title>([^<]+)<\/title>/i);
+        // Try to find title in Astro const definition
+        const titleMatchAstro = content.match(/const title = "([^"]+)";/);
+
+        if (titleMatchAstro && titleMatchAstro[1]) {
+          title = titleMatchAstro[1].trim();
+        } else if (titleMatchHtml && titleMatchHtml[1]) {
+          title = titleMatchHtml[1].trim();
         }
+
+        // Remove date prefix (YYMMDD_)
+        title = title.replace(/^\d{6}_/, "");
       }
       return {
         url: `/${dirName}/`,
@@ -30,18 +41,18 @@ let sketchesInfoProcessed = Object.entries(sketchFiles).map(
       };
     }
     return null;
-  }
+  },
 );
 
 let sketchesInfo = sketchesInfoProcessed.filter(
   (
-    sketch
+    sketch,
   ): sketch is {
     url: string;
     date: string;
     name: string;
     originalPath: string;
-  } => sketch !== null
+  } => sketch !== null,
 );
 
 // 古い順にソート
@@ -206,7 +217,7 @@ sketchesInfoWithIndex.sort((a, b) => {
         if (link) {
           // 既存のiframeをチェック
           iframe = document.querySelector(
-            "iframe[data-preview]"
+            "iframe[data-preview]",
           ) as HTMLIFrameElement;
 
           if (!iframe) {
@@ -236,7 +247,7 @@ sketchesInfoWithIndex.sort((a, b) => {
         const link = target?.href;
         console.log(link);
         const iframe = document.querySelector(
-          "iframe[data-preview]"
+          "iframe[data-preview]",
         ) as HTMLIFrameElement;
         if (iframe) {
           iframe.remove();

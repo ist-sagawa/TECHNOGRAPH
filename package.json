@@ -12,7 +12,9 @@
     "update": "npx -p npm-check-updates -c \"ncu -u && npm i\"",
     "deploy": "sanity deploy",
     "optimize-images": "node scripts/optimize-images.js",
-    "optimize:dry-run": "node scripts/optimize-images.js --dry-run"
+    "optimize:dry-run": "node scripts/optimize-images.js --dry-run",
+    "new": "node scripts/manage-sketch.js create",
+    "change": "node scripts/manage-sketch.js update"
   },
   "dependencies": {
     "@astrojs/check": "^0.7.0",
