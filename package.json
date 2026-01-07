@@ -14,7 +14,8 @@
     "optimize-images": "node scripts/optimize-images.js",
     "optimize:dry-run": "node scripts/optimize-images.js --dry-run",
     "new": "node scripts/manage-sketch.js create",
-    "change": "node scripts/manage-sketch.js update"
+    "change": "node scripts/manage-sketch.js update",
+    "delete": "node scripts/manage-sketch.js delete"
   },
   "dependencies": {
     "@astrojs/check": "^0.7.0",

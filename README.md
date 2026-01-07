@@ -50,6 +50,7 @@ All commands are run from the root of the project, from a terminal:
 | `npm run astro -- --help` | Get help using the Astro CLI                     |
 | `npm run new ...`         | Create a new sketch (e.g. `npm run new Title`)   |
 | `npm run change ...`      | Update a sketch (e.g. `npm run change 251120 NewTitle`) |
+| `npm run delete ...`      | Delete a sketch (e.g. `npm run delete 251120`)   |
 
 ## 👀 Want to learn more?
 
@@ -73,4 +74,9 @@ npm run new 251120 タイトル （日付指定で作成） ※すでにフォ�
 npm run change 251120 新しいタイトル （タイトルのみ変更）
 npm run change 251120 251121 （日付/フォルダ名変更）
 npm run change 251120 251121 新しいタイトル （両方変更）
+```
+## 🗑️ 削除 (npm run delete)
+
+```
+npm run delete 251120 （指定した日付のフォルダを削除）
 ```

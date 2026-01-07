@@ -5,12 +5,12 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Command: create or update
+// Command: create, update, or delete
 const command = process.argv[2];
 const args = process.argv.slice(3);
 
-if (command !== 'create' && command !== 'update') {
-  console.error('Usage: node manage-sketch.js [create|update] [args...]');
+if (command !== 'create' && command !== 'update' && command !== 'delete') {
+  console.error('Usage: node manage-sketch.js [create|update|delete] [args...]');
   process.exit(1);
 }
 
@@ -242,4 +242,46 @@ function windowResized() {
   }
 
   console.log('Update complete.');
+} else if (command === 'delete') {
+  // === DELETE MODE ===
+  // Usage: npm run delete [date]
+
+  if (args.length < 1) {
+    console.error('Usage: npm run delete [date]');
+    process.exit(1);
+  }
+
+  const dateStr = args[0];
+
+  if (!isDate(dateStr)) {
+    console.error('Error: Argument must be a valid date (YYMMDD).');
+    process.exit(1);
+  }
+
+  const srcDir = path.join(rootDir, 'src', 'pages', dateStr);
+  const publicDir = path.join(rootDir, 'public', dateStr);
+
+  let deletedCount = 0;
+
+  if (fs.existsSync(srcDir)) {
+    fs.rmSync(srcDir, { recursive: true, force: true });
+    console.log(`- Deleted ${srcDir}`);
+    deletedCount++;
+  } else {
+    console.log(`- Skipping ${srcDir} (not found)`);
+  }
+
+  if (fs.existsSync(publicDir)) {
+    fs.rmSync(publicDir, { recursive: true, force: true });
+    console.log(`- Deleted ${publicDir}`);
+    deletedCount++;
+  } else {
+    console.log(`- Skipping ${publicDir} (not found)`);
+  }
+
+  if (deletedCount > 0) {
+    console.log(`Successfully deleted sketch for ${dateStr}.`);
+  } else {
+    console.log(`No folders found for ${dateStr}. Nothing was deleted.`);
+  }
 }
