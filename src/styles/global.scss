@@ -41,7 +41,8 @@
 
 html {
   font-family: "Press Start 2P", "Space Mono", "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont,'Open Sans', 'Helvetica Neue', sans-serif;
-
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   @supports (scrollbar-gutter: stable) {
     overflow-y: auto;
     scrollbar-gutter: stable;
