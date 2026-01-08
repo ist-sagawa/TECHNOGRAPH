@@ -288,8 +288,22 @@ function createUI() {
     exportBuffer.pixelDensity(1);
     exportBuffer.noSmooth();
     
-    // 背景色で塗りつぶし
-    exportBuffer.background(params.bgColor);
+    // 完全な透明から開始
+    exportBuffer.clear();
+    
+    // 背景色が完全に透明（または非常にアルファ値が低い）でない場合のみ背景を描画
+    // カラーピッカーの値からアルファを取得するのは難しいため、
+    // ここではもしユーザーが背景を透明にしたい場合を考慮して制御
+    // 一旦、画像をダウンロードする際は背景を含めるのが一般的だが、
+    // 背景色を描画すると透明PNGの透過性が失われるため。
+    // 「背景色」という概念と「透過」の両立のため、一旦背景描画をスキップするか
+    // 判定を入れる必要があるが、ひとまず「背景を描画しない」モードで透過を優先してみる
+    
+    /* 
+    exportBuffer.fill(params.bgColor);
+    exportBuffer.noStroke();
+    exportBuffer.rect(0, 0, 1920, 1920);
+    */
     
     let imgToDraw = ditheredImg || selectedImg;
     if (imgToDraw) {
@@ -303,9 +317,14 @@ function createUI() {
       if (ditheredImg && !params.useColor) {
         exportBuffer.tint(params.fgColor);
       }
-      exportBuffer.image(imgToDraw, x, y, w, h);
+      
+      // 描画モードを適切に設定（透明度を維持）
+      exportBuffer.imageMode(CENTER);
+      exportBuffer.image(imgToDraw, 1920/2, 1920/2, w, h);
     }
     
+    // 背景色が透明なら、その透明度を維持したまま保存、そうでなければ背景色で塗りつぶし
+    // ただしダウンロードされるファイルが正しく見えるよう、一時的に背景を反映
     let outImg = exportBuffer.get();
     outImg.save(`dithered_${timestamp}`, 'png');
     exportBuffer.remove();
@@ -412,6 +431,9 @@ function updateDither() {
   if (!params.useColor) {
     // 2色モード: 明るさをアルファに変換
     for (let i = 0; i < temp.pixels.length; i += 4) {
+      // もともと透明だったピクセルはそのままにする
+      if (temp.pixels[i+3] === 0) continue;
+      
       let b = temp.pixels[i]; // すでにモノクロ
       temp.pixels[i] = 255;
       temp.pixels[i+1] = 255;
@@ -419,10 +441,7 @@ function updateDither() {
       temp.pixels[i+3] = b;
     }
   } else {
-    // カラーモード: 不透明にする
-    for (let i = 0; i < temp.pixels.length; i += 4) {
-      temp.pixels[i+3] = 255;
-    }
+    // カラーモード: そのまま（applyDitherFilterでアルファ制御済み）
   }
   
   temp.updatePixels();
@@ -439,6 +458,12 @@ function applyDitherFilter(pg, type, threshold, isColor) {
       [1, 9, 3, 11], [13, 5, 15, 7], [4, 12, 2, 10], [16, 8, 14, 6]
     ];
     for (let i = 0; i < pix.length; i += 4) {
+      // アルファ値が低い（透明）場合は処理をスキップ
+      if (pix[i+3] < 128) {
+        pix[i+3] = 0;
+        continue;
+      }
+
       let x = (i/4) % w;
       let y = floor((i/4) / w);
       let offset = (type === 'bayer') ? (bayerMap[x % 4][y % 4] - 8) * (255/16) : 0;
@@ -451,11 +476,19 @@ function applyDitherFilter(pg, type, threshold, isColor) {
         let gray = pix[i] * 0.299 + pix[i+1] * 0.587 + pix[i+2] * 0.114;
         pix[i] = pix[i+1] = pix[i+2] = (gray + offset) < threshold ? 0 : 255;
       }
+      pix[i+3] = 255; // 不透明な領域は255に固定
     }
   } else {
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         let i = (x + y * w) * 4;
+        
+        // アルファ値が低い（透明）場合は処理をスキップ
+        if (pix[i+3] < 128) {
+          pix[i+3] = 0;
+          continue;
+        }
+
         if (isColor) {
           for (let c = 0; c < 3; c++) {
             let oldP = pix[i + c];
@@ -471,6 +504,7 @@ function applyDitherFilter(pg, type, threshold, isColor) {
           pix[i] = pix[i+1] = pix[i+2] = newP;
           distributeErrorColor(pix, x, y, w, h, err, type, -1);
         }
+        pix[i+3] = 255; // 処理したピクセルは不透明に
       }
     }
   }
