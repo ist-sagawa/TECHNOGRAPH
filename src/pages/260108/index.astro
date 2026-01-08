@@ -1,0 +1,11 @@
+---
+import SketchLayout from "../../layouts/SketchLayout.astro";
+import "../../styles/sketch.scss";
+const title = "260108_dither_image_effect";
+const date = "260108";
+---
+
+<SketchLayout title={title} date={date}>
+  <link slot="head" rel="stylesheet" href={`/${date}/style.css`} />
+  <script slot="head" src={`/${date}/script.js`} is:inline></script>
+</SketchLayout>
