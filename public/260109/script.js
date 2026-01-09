@@ -17,9 +17,13 @@ let draggingMoved = false;
 let dragStartX = 0;
 let dragStartY = 0;
 
+let draggingFace = null; // { face, startX, startY, origPts }
+
 let newFaceBtn;
 let framesToggleBtn;
 let downloadBtn;
+let randomShapeBtn;
+let randomAllImagesBtn;
 
 let selectedImg = null;
 let currentImgPath = '';
@@ -139,6 +143,42 @@ function createUI() {
     updateFramesToggleButton();
   });
 
+  randomShapeBtn = createButton('RANDOM SHAPE');
+  randomShapeBtn.parent(controls);
+  randomShapeBtn.style('width', '100%');
+  randomShapeBtn.style('padding', '8px');
+  randomShapeBtn.style('border', 'none');
+  randomShapeBtn.style('font-family', '"Space Mono", monospace');
+  randomShapeBtn.style('font-size', '10px');
+  randomShapeBtn.style('font-weight', 'bold');
+  randomShapeBtn.style('cursor', 'pointer');
+
+  randomShapeBtn.mousePressed(() => {
+    // Ensure frames are visible
+    showFrames = true;
+    updateFramesToggleButton();
+
+    // Leave image placing mode
+    isImagePlacing = false;
+    placingImg = null;
+    placingImgName = '';
+
+    // If there is an active face, finalize it only if valid
+    if (activeFace && activeFace.points && activeFace.points.length >= 3) {
+      faces.push(activeFace);
+      selectedFace = activeFace;
+    }
+    activeFace = null;
+    isPlacing = false;
+    updateNewFaceButton();
+
+    const f = createRandomFace();
+    if (f) {
+      faces.push(f);
+      selectedFace = f;
+    }
+  });
+
   const titleImages = createElement('h2', '2. PUT IMAGE!');
   titleImages.parent(ui);
   titleImages.style('margin-top', '16px');
@@ -200,6 +240,23 @@ function createUI() {
 
   dropZone.elt.addEventListener('click', () => fileInput.elt.click());
 
+  randomAllImagesBtn = createButton('RANDOM IMAGES');
+  randomAllImagesBtn.parent(ui);
+  randomAllImagesBtn.style('width', '100%');
+  randomAllImagesBtn.style('padding', '8px');
+  randomAllImagesBtn.style('border', 'none');
+  randomAllImagesBtn.style('margin-top', '12px');
+  randomAllImagesBtn.style('font-family', '"Space Mono", monospace');
+  randomAllImagesBtn.style('font-size', '10px');
+  randomAllImagesBtn.style('font-weight', 'bold');
+  randomAllImagesBtn.style('cursor', 'pointer');
+  randomAllImagesBtn.style('background', '#fff');
+  randomAllImagesBtn.style('color', '#000');
+
+  randomAllImagesBtn.mousePressed(() => {
+    applyRandomImagesToAllFrames();
+  });
+
   downloadBtn = createButton('DOWNLOAD PNG');
   downloadBtn.parent(ui);
   downloadBtn.style('width', '100%');
@@ -241,6 +298,30 @@ function updateFramesToggleButton() {
     framesToggleBtn.style('color', '#000');
     framesToggleBtn.style('border', 'none');
   }
+}
+
+function createRandomFace() {
+  // Random number of points (3..8)
+  const count = floor(random(3, 12));
+
+  // Radius and safe margin so points stay on canvas
+  const r = random(140, 600);
+  const margin = 24;
+  const cx = random(r + margin, width - r - margin);
+  const cy = random(r + margin, height - r - margin);
+
+  const pts = [];
+  for (let i = 0; i < count; i++) {
+    const baseA = (TWO_PI * i) / count;
+    const a = baseA + random(-0.5, 0.5);
+    const rr = r * random(0.25, 1.0);
+    const x = cx + cos(a) * rr;
+    const y = cy + sin(a) * rr;
+    pts.push({ x: constrain(x, 0, width), y: constrain(y, 0, height) });
+  }
+
+  const sorted = sortPointsClockwise(pts);
+  return { points: sorted, image: null, imageName: '' };
 }
 
 function startPlacingImage(img, name) {
@@ -303,6 +384,35 @@ function applyImageToFace(face, img, name) {
   if (!face) return;
   face.image = img;
   face.imageName = name || '';
+}
+
+function applyRandomImagesToAllFrames() {
+  if (!sourceImages || sourceImages.length === 0) return;
+
+  // Exit placing modes; we're applying directly.
+  isImagePlacing = false;
+  placingImg = null;
+  placingImgName = '';
+
+  const targets = [];
+  for (const f of faces) {
+    if (f && f.points && f.points.length >= 3) targets.push(f);
+  }
+
+  if (activeFace && activeFace.points && activeFace.points.length >= 3) {
+    targets.push(activeFace);
+  }
+
+  if (targets.length === 0) return;
+
+  for (const face of targets) {
+    const pick = sourceImages[floor(random(sourceImages.length))];
+    if (!pick) continue;
+
+    loadImage(pick.path, (img) => {
+      applyImageToFace(face, img, pick.name);
+    });
+  }
 }
 
 function polygonSignedArea(pts) {
@@ -385,6 +495,20 @@ function ensureFaceClockwise(face) {
   if (polygonSignedArea(face.points) < 0) face.points.reverse();
 }
 
+function getPointsBounds(pts) {
+  let minX = pts[0].x;
+  let minY = pts[0].y;
+  let maxX = pts[0].x;
+  let maxY = pts[0].y;
+  for (let i = 1; i < pts.length; i++) {
+    minX = Math.min(minX, pts[i].x);
+    minY = Math.min(minY, pts[i].y);
+    maxX = Math.max(maxX, pts[i].x);
+    maxY = Math.max(maxY, pts[i].y);
+  }
+  return { minX, minY, maxX, maxY };
+}
+
 function mousePressed() {
   if (overUI) return;
   const isOutsideCanvas = mouseX < 0 || mouseX > width || mouseY < 0 || mouseY > height;
@@ -411,6 +535,21 @@ function mousePressed() {
       dragStartX = mouseX;
       dragStartY = mouseY;
       selectedFace = hit.face;
+      return;
+    }
+  }
+
+  // Face drag (only when NOT in placing modes)
+  if (showFrames && !isPlacing && !(isImagePlacing && placingImg)) {
+    const target = findTopmostFaceAt(mouseX, mouseY);
+    if (target && target.points && target.points.length >= 3 && pointInPolygon(mouseX, mouseY, target.points)) {
+      draggingFace = {
+        face: target,
+        startX: mouseX,
+        startY: mouseY,
+        origPts: target.points.map((p) => ({ x: p.x, y: p.y }))
+      };
+      selectedFace = target;
       return;
     }
   }
@@ -449,22 +588,46 @@ function mousePressed() {
 
 function mouseDragged() {
   if (!showFrames) return;
-  if (!draggingPoint) return;
   if (overUI) return;
 
-  const face = draggingPoint.face;
-  const idx = draggingPoint.index;
-  if (!face || !face.points || idx < 0 || idx >= face.points.length) return;
+  if (draggingPoint) {
+    const face = draggingPoint.face;
+    const idx = draggingPoint.index;
+    if (!face || !face.points || idx < 0 || idx >= face.points.length) return;
 
-  const movedDist2 = (mouseX - dragStartX) * (mouseX - dragStartX) + (mouseY - dragStartY) * (mouseY - dragStartY);
-  if (movedDist2 > 9) draggingMoved = true; // ~3px threshold
+    const movedDist2 = (mouseX - dragStartX) * (mouseX - dragStartX) + (mouseY - dragStartY) * (mouseY - dragStartY);
+    if (movedDist2 > 9) draggingMoved = true; // ~3px threshold
 
-  face.points[idx].x = constrain(mouseX, 0, width);
-  face.points[idx].y = constrain(mouseY, 0, height);
+    face.points[idx].x = constrain(mouseX, 0, width);
+    face.points[idx].y = constrain(mouseY, 0, height);
+    return;
+  }
+
+  if (draggingFace) {
+    const face = draggingFace.face;
+    const orig = draggingFace.origPts;
+    if (!face || !face.points || !orig || orig.length !== face.points.length) return;
+
+    const dxWanted = mouseX - draggingFace.startX;
+    const dyWanted = mouseY - draggingFace.startY;
+
+    const b = getPointsBounds(orig);
+    const dx = constrain(dxWanted, -b.minX, width - b.maxX);
+    const dy = constrain(dyWanted, -b.minY, height - b.maxY);
+
+    for (let i = 0; i < face.points.length; i++) {
+      face.points[i].x = orig[i].x + dx;
+      face.points[i].y = orig[i].y + dy;
+    }
+  }
 }
 
 function mouseReleased() {
   if (!showFrames) return;
+  if (draggingFace) {
+    draggingFace = null;
+  }
+
   if (!draggingPoint) return;
 
   const face = draggingPoint.face;
