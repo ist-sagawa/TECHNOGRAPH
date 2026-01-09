@@ -1,0 +1,91 @@
+@import url("https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap");
+
+/* Local style overrides (match 260108 UI) */
+body.sketch {
+  margin: 0;
+  padding: 0;
+  background-color: #fff !important;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  overflow: hidden;
+  font-family: "Press Start 2P";
+}
+
+canvas {
+  display: block;
+  position: relative !important;
+  box-shadow: none;
+  background-color: #fff !important;
+  border: 1px solid #000;
+  top: auto !important;
+  left: auto !important;
+  width: 90vmin !important;
+  height: 90vmin !important;
+}
+
+.ui-container {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.95);
+  padding: 20px;
+  border-radius: 8px;
+  width: 240px;
+  color: #fff;
+  font-family: "Space Mono", monospace;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.image-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.image-thumb {
+  width: 40px;
+  height: 40px;
+  background-size: cover;
+  background-position: center;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.2s;
+}
+
+.image-thumb:hover {
+  border-color: #fff;
+}
+
+.image-thumb.selected {
+  border-color: #fff;
+}
+
+h2 {
+  font-size: 9px;
+  margin: 0 0 10px 0;
+  font-family: "Press Start 2P";
+  font-weight: normal;
+}
+
+/* Drop zone style within UI */
+.drop-zone {
+  border: 2px dashed #444;
+  padding: 15px 5px;
+  text-align: center;
+  font-size: 10px;
+  color: #aaa;
+  background: #222;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-bottom: 10px;
+}
+
+.drop-zone:hover {
+  border-color: #fff;
+  color: #fff;
+  background: #333;
+}
