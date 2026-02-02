@@ -7,6 +7,68 @@ var __name2 = /* @__PURE__ */ __name((target, value) => __defProp2(target, "name
 var PROJECT_ID = "nacdthna";
 var DATASET = "production";
 var API_VERSION = "2024-07-02";
+function json(data, init = {}) {
+  return new Response(JSON.stringify(data, null, 2), {
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      // Avoid edge caching; gallery should reflect new uploads quickly.
+      "cache-control": "no-store",
+      ...init.headers || {}
+    },
+    ...init
+  });
+}
+__name(json, "json");
+__name2(json, "json");
+async function onRequestGet(context) {
+  const url = new URL(context.request.url);
+  const limitRaw = Number(url.searchParams.get("limit") || "240");
+  const limit = Number.isFinite(limitRaw) ? Math.min(1e3, Math.max(1, Math.floor(limitRaw))) : 240;
+  const query = `*[_type == "crystalizerImage"]
+    | order(coalesce(date, createdAt, _createdAt) desc, _createdAt desc)
+    [0...$limit]{
+      _id,
+      title,
+      date,
+      externalId,
+      name,
+      message,
+      "createdAt": coalesce(createdAt, _createdAt),
+      "imageUrl": image.asset->url
+    }`;
+  const endpoint = `https://${PROJECT_ID}.api.sanity.io/v${API_VERSION}/data/query/${DATASET}?query=${encodeURIComponent(query)}&$limit=${encodeURIComponent(String(limit))}`;
+  const tokenRaw = context?.env?.SANITY_API_READ_TOKEN || context?.env?.SANITY_API_WRITE_TOKEN || process.env.SANITY_API_READ_TOKEN || process.env.SANITY_API_WRITE_TOKEN;
+  const token = String(tokenRaw || "").trim().replace(/^"(.*)"$/, "$1").replace(/^'(.*)'$/, "$1").trim();
+  const res = await fetch(endpoint, {
+    headers: {
+      ...token ? { Authorization: `Bearer ${token}` } : {}
+    }
+  });
+  const text = await res.text().catch(() => "");
+  let data;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = null;
+  }
+  if (!res.ok) {
+    return json(
+      {
+        ok: false,
+        status: res.status,
+        error: data?.message || data?.error || text || "Failed to query Sanity"
+      },
+      { status: 500 }
+    );
+  }
+  const items = Array.isArray(data?.result) ? data.result : [];
+  return json({ ok: true, items });
+}
+__name(onRequestGet, "onRequestGet");
+__name2(onRequestGet, "onRequestGet");
+var PROJECT_ID2 = "nacdthna";
+var DATASET2 = "production";
+var API_VERSION2 = "2024-07-02";
 function toHex(bytes) {
   try {
     return Array.from(bytes).map((b) => Number(b).toString(16).padStart(2, "0")).join(" ");
@@ -35,7 +97,7 @@ function sniffImageType(buf) {
 }
 __name(sniffImageType, "sniffImageType");
 __name2(sniffImageType, "sniffImageType");
-function json(data, init = {}) {
+function json2(data, init = {}) {
   return new Response(JSON.stringify(data, null, 2), {
     headers: {
       "content-type": "application/json; charset=utf-8",
@@ -44,13 +106,13 @@ function json(data, init = {}) {
     ...init
   });
 }
-__name(json, "json");
-__name2(json, "json");
+__name(json2, "json2");
+__name2(json2, "json");
 async function onRequestPost(context) {
   const tokenRaw = context?.env?.SANITY_API_WRITE_TOKEN || process.env.SANITY_API_WRITE_TOKEN;
   const token = String(tokenRaw || "").trim().replace(/^"(.*)"$/, "$1").replace(/^'(.*)'$/, "$1").trim();
   if (!token) {
-    return json(
+    return json2(
       {
         ok: false,
         error: "Missing SANITY_API_WRITE_TOKEN env var."
@@ -60,7 +122,7 @@ async function onRequestPost(context) {
   }
   const ct = context.request.headers.get("content-type") || "";
   if (!ct.toLowerCase().includes("multipart/form-data")) {
-    return json(
+    return json2(
       {
         ok: false,
         error: "Content-Type must be multipart/form-data"
@@ -76,7 +138,7 @@ async function onRequestPost(context) {
   const name = String(form.get("name") || "").trim();
   const message = String(form.get("message") || "").trim();
   if (!(file instanceof File)) {
-    return json(
+    return json2(
       {
         ok: false,
         error: "Missing form field: file"
@@ -87,7 +149,7 @@ async function onRequestPost(context) {
   const size = Number(file.size || 0);
   const type = String(file.type || "").trim();
   if (!size || size <= 0) {
-    return json(
+    return json2(
       {
         ok: false,
         error: "Uploaded file is empty (0 bytes)."
@@ -96,7 +158,7 @@ async function onRequestPost(context) {
     );
   }
   if (type && !type.startsWith("image/")) {
-    return json(
+    return json2(
       {
         ok: false,
         error: `Uploaded file is not an image (type: ${type}).`
@@ -123,7 +185,7 @@ async function onRequestPost(context) {
   }, "sanitizeDocId");
   const buf = await file.arrayBuffer();
   if (!buf || buf.byteLength <= 0) {
-    return json(
+    return json2(
       {
         ok: false,
         error: "Failed to read uploaded file bytes."
@@ -136,7 +198,7 @@ async function onRequestPost(context) {
   const blob = new Blob([buf], { type: contentType });
   const up = new FormData();
   up.append("file", blob, filename);
-  const assetUrl = `https://${PROJECT_ID}.api.sanity.io/v${API_VERSION}/assets/images/${DATASET}?filename=${encodeURIComponent(filename)}`;
+  const assetUrl = `https://${PROJECT_ID2}.api.sanity.io/v${API_VERSION2}/assets/images/${DATASET2}?filename=${encodeURIComponent(filename)}`;
   const parseJsonOrNull = /* @__PURE__ */ __name2((txt) => {
     try {
       return txt ? JSON.parse(txt) : null;
@@ -153,8 +215,8 @@ async function onRequestPost(context) {
       body: up
     });
     const text = await res.text().catch(() => "");
-    const json2 = parseJsonOrNull(text);
-    return { res, text, json: json2, method: "multipart" };
+    const json3 = parseJsonOrNull(text);
+    return { res, text, json: json3, method: "multipart" };
   }, "doMultipartUpload");
   const doRawUpload = /* @__PURE__ */ __name2(async () => {
     const res = await fetch(assetUrl, {
@@ -166,8 +228,8 @@ async function onRequestPost(context) {
       body: buf
     });
     const text = await res.text().catch(() => "");
-    const json2 = parseJsonOrNull(text);
-    return { res, text, json: json2, method: "raw" };
+    const json3 = parseJsonOrNull(text);
+    return { res, text, json: json3, method: "raw" };
   }, "doRawUpload");
   let assetAttempt = await doMultipartUpload();
   if (!assetAttempt.res.ok) {
@@ -183,7 +245,7 @@ async function onRequestPost(context) {
   const assetJson = assetAttempt.json;
   const assetUploadMethod = assetAttempt.method;
   if (!assetRes.ok) {
-    return json(
+    return json2(
       {
         ok: false,
         step: "uploadAsset",
@@ -206,7 +268,7 @@ async function onRequestPost(context) {
   const assetId = assetJson?.document?._id;
   const asset = assetJson?.document;
   if (!assetId) {
-    return json(
+    return json2(
       {
         ok: false,
         step: "uploadAsset",
@@ -231,7 +293,7 @@ async function onRequestPost(context) {
       asset: { _type: "reference", _ref: assetId }
     }
   };
-  const mutateUrl = `https://${PROJECT_ID}.api.sanity.io/v${API_VERSION}/data/mutate/${DATASET}?returnIds=true`;
+  const mutateUrl = `https://${PROJECT_ID2}.api.sanity.io/v${API_VERSION2}/data/mutate/${DATASET2}?returnIds=true`;
   const mutateRes = await fetch(mutateUrl, {
     method: "POST",
     headers: {
@@ -249,7 +311,7 @@ async function onRequestPost(context) {
     }
   })();
   if (!mutateRes.ok) {
-    return json(
+    return json2(
       {
         ok: false,
         step: "createDocument",
@@ -262,7 +324,7 @@ async function onRequestPost(context) {
     );
   }
   const createdId = mutateJson?.results?.[0]?.id || docId;
-  return json({
+  return json2({
     ok: true,
     asset,
     documentId: createdId,
@@ -323,6 +385,13 @@ __name(handleRequest, "handleRequest");
 __name2(handleRequest, "handleRequest");
 var onRequest = [errorHandling, handleRequest];
 var routes = [
+  {
+    routePath: "/api/crystalizer/gallery",
+    mountPath: "/api/crystalizer",
+    method: "GET",
+    middlewares: [],
+    modules: [onRequestGet]
+  },
   {
     routePath: "/api/crystalizer/upload",
     mountPath: "/api/crystalizer",
