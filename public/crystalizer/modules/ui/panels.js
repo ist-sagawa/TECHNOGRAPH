@@ -10,7 +10,9 @@ const UIr = {
   thumbs: null,
   transformBtn: null,
   alphaBtn: null,
-  syncAlphaBtn: null
+  syncAlphaBtn: null,
+  sendNameInput: null,
+  sendMessageInput: null
 };
 
 function getUsedFaceImageNames() {
@@ -448,7 +450,8 @@ function applyDitAdjustToUsedFrames() {
 // We will export initDownloadPanel and call it from layout.js for the bottom area.
 
 export function initDownloadPanel(container) {
-  const row = window.createDiv('').addClass('footer-row-inner').parent(container);
+  const col = window.createDiv('').addClass('footer-col').parent(container);
+  const row = window.createDiv('').addClass('footer-row-inner').parent(col);
 
   const dlBtn = window.createDiv('DOWNLOAD').parent(row);
   dlBtn.addClass('download-section');
@@ -466,19 +469,15 @@ export function initDownloadPanel(container) {
     sendBtn.elt.textContent = 'SENDING…';
     sendBtn.elt.disabled = true;
     try {
-      const today = new Date();
-      const yyyy = String(today.getFullYear());
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const dd = String(today.getDate()).padStart(2, '0');
-      const defaultDate = `${yyyy}-${mm}-${dd}`;
+      const name = (UIr.sendNameInput?.value?.() ?? UIr.sendNameInput?.elt?.value ?? '').trim();
+      const message = (UIr.sendMessageInput?.value?.() ?? UIr.sendMessageInput?.elt?.value ?? '').trim();
 
-      const date = window.prompt('Date (YYYY-MM-DD)', defaultDate) ?? defaultDate;
-      const idDefault = `crystalizer_${Date.now()}`;
-      const externalId = window.prompt('ID', idDefault) ?? idDefault;
-      const name = window.prompt('Name', '') ?? '';
-      const message = window.prompt('Message', '') ?? '';
+      // Remember name locally for convenience
+      try {
+        if (name) localStorage.setItem('crystalizer.send.name', name);
+      } catch { }
 
-      const res = await window.sendToSanityFromCanvas?.({ date, externalId, name, message });
+      const res = await window.sendToSanityFromCanvas?.({ name, message });
       if (res?.ok) sendBtn.elt.textContent = 'SENT';
       else sendBtn.elt.textContent = 'FAILED';
       window.setTimeout(() => {
@@ -494,6 +493,25 @@ export function initDownloadPanel(container) {
       }, 1200);
     }
   });
+
+  // name/message inputs (below buttons)
+  const meta = window.createDiv('').addClass('footer-meta').parent(col);
+  const rememberedName = (() => {
+    try { return localStorage.getItem('crystalizer.send.name') || ''; } catch { return ''; }
+  })();
+
+  const nameInput = window.createInput(rememberedName);
+  nameInput.addClass('send-input');
+  nameInput.attribute('placeholder', 'name');
+  nameInput.parent(meta);
+
+  const msgInput = window.createElement('textarea', '');
+  msgInput.addClass('send-textarea');
+  msgInput.attribute('placeholder', 'message');
+  msgInput.parent(meta);
+
+  UIr.sendNameInput = nameInput;
+  UIr.sendMessageInput = msgInput;
 
   const bgBtn = window.createButton('ALPHA').parent(row);
   bgBtn.addClass('download-toggle');

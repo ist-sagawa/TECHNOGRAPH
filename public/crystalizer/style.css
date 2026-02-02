@@ -507,6 +507,40 @@ input[type="range"]::-moz-range-thumb {
   width: 100%;
 }
 
+.footer-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.footer-meta {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.send-input {
+  width: 140px;
+  height: 32px;
+  border: 1px solid #1a1a1a;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 11px;
+  padding: 0 8px;
+}
+
+.send-textarea {
+  flex: 1;
+  height: 32px;
+  border: 1px solid #1a1a1a;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 11px;
+  padding: 6px 8px;
+  resize: none;
+}
+
 .download-section {
   flex: 1;
 }

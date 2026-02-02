@@ -50,8 +50,8 @@ export async function onRequestPost(context) {
   const form = await context.request.formData();
   const file = form.get('file');
   const title = String(form.get('title') || '').trim();
-  const date = String(form.get('date') || '').trim();
-  const externalId = String(form.get('id') || form.get('externalId') || '').trim();
+  const dateRaw = String(form.get('date') || '').trim();
+  const externalIdRaw = String(form.get('id') || form.get('externalId') || '').trim();
   const name = String(form.get('name') || '').trim();
   const message = String(form.get('message') || '').trim();
 
@@ -66,6 +66,21 @@ export async function onRequestPost(context) {
   }
 
   const filename = file.name || `crystalizer_${Date.now()}.png`;
+
+  const now = new Date();
+  const dateAuto = now.toISOString().slice(0, 10); // YYYY-MM-DD
+  const date = dateRaw || dateAuto;
+
+  // externalId: always `cr` prefix
+  const rand = (() => {
+    try {
+      // Cloudflare Workers supports crypto.randomUUID in most runtimes
+      return (crypto?.randomUUID?.() || '').replace(/-/g, '').slice(0, 8);
+    } catch {
+      return String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
+    }
+  })();
+  const externalId = externalIdRaw || `cr${Date.now()}_${rand}`;
 
   // 1) Upload asset
   const up = new FormData();
@@ -111,8 +126,8 @@ export async function onRequestPost(context) {
   const doc = {
     _type: 'crystalizerImage',
     title: title || filename.replace(/\.(png|jpg|jpeg|webp)$/i, ''),
-    date: date || undefined,
-    externalId: externalId || undefined,
+    date,
+    externalId,
     name: name || undefined,
     message: message || undefined,
     createdAt: new Date().toISOString(),
