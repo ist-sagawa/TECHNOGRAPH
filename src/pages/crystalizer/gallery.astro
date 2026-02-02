@@ -17,7 +17,7 @@ const fmtDate = (iso?: string) => {
 };
 ---
 
-<Page title="Crystalizer Gallery" showSplash={false}>
+<Page title="Crystalizer Gallery" showSplash={false} showLogo={false}>
   <main slot="content" class="wrap">
     <header class="head">
       <h2>Crystalizer Gallery</h2>
@@ -38,18 +38,13 @@ const fmtDate = (iso?: string) => {
           <article class="card">
             <a class="img" href={imgUrl} target="_blank" rel="noreferrer">
               {imgUrl ? <img src={imgUrl} alt={title} loading="lazy" /> : <div class="ph">no image</div>}
+              <div class="body">
+                {item.externalId && <span>#{item.externalId}</span>}
+                {date && <span>{fmtDate(date)}</span>}
+                {item.name && <span>{item.name}</span>}
+                {item.message && <span>{item.message}</span>}
+              </div>
             </a>
-            <div class="body">
-              <div class="row">
-                <div class="title">{title}</div>
-                <div class="date">{fmtDate(date)}</div>
-              </div>
-              <div class="sub">
-                {item.name && <span class="pill">{item.name}</span>}
-                {item.externalId && <span class="pill mono">#{item.externalId}</span>}
-              </div>
-              {item.message && <div class="msg">{item.message}</div>}
-            </div>
           </article>
         );
       })}
@@ -61,6 +56,9 @@ const fmtDate = (iso?: string) => {
   .wrap {
     width: 100%;
     max-width: 1200px;
+    position: absolute;
+    top: 0;
+    left: 0;
   }
 
   .head {
@@ -68,12 +66,17 @@ const fmtDate = (iso?: string) => {
     justify-content: space-between;
     align-items: baseline;
     gap: 16px;
-    margin-bottom: 24px;
-
+    // margin-bottom: 24px;
+    position: absolute;
+    top: 0;
+    left: 0;
     h2 {
       font-size: 14px;
       letter-spacing: 0.04em;
       margin: 0;
+    }
+    * {
+      background: #fff;
     }
   }
 
@@ -101,36 +104,25 @@ const fmtDate = (iso?: string) => {
   }
 
   .grid {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 16px;
-
-    @media (max-width: 900px) {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    @media (max-width: 520px) {
-      grid-template-columns: 1fr;
-    }
-  }
-
-  .card {
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(0, 0, 0, 0.2);
+    display: flex;
+    width: 100vw;
+    flex-wrap: wrap;
   }
 
   .img {
-    display: block;
-    aspect-ratio: 3 / 4;
-    overflow: hidden;
-    background: rgba(255, 255, 255, 0.04);
-
     img {
-      width: 100%;
-      height: 100%;
+      width: 12.5vw;
+      max-width: 960px;
+      max-height: 960px;
       object-fit: cover;
       display: block;
+      background-color: #000;
+      @include mq(sp) {
+        width: 50vw;
+      }
     }
+    position: relative;
+    
   }
 
   .ph {
@@ -142,45 +134,18 @@ const fmtDate = (iso?: string) => {
     opacity: 0.6;
   }
 
-  .body {
-    padding: 10px 10px 12px;
+  .img .body {
+    position: absolute;
+    bottom: 0;
   }
 
-  .row {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 10px;
-  }
-
-  .title {
-    font-size: 11px;
-    line-height: 1.2;
-    word-break: break-word;
-  }
-
-  .date {
+  .body span {
+    display: block;
     font-size: 10px;
-    opacity: 0.65;
-    white-space: nowrap;
-  }
-
-  .sub {
-    margin-top: 8px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-  }
-
-  .pill {
-    font-size: 10px;
-    padding: 2px 6px;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    opacity: 0.9;
-  }
-
-  .mono {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    opacity: 0.75;
+    line-height: 1.4;
+    font-family: "Space Mono", monospace;
+    color: #fff
   }
 
   .msg {

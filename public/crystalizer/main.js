@@ -49,6 +49,7 @@ function initSourceImagesFromFiles(files) {
   };
 
   State.sourceImages = (files || []).map((filename) => {
+    const stem = String(filename || '').replace(/\.[^.]+$/, '');
     const params = createDefaultDitherParams();
     // Crystalizeでプールを入れ替えても“見え方”が急に変わりすぎないように、
     // ファイル名から決まる安定したON/OFFを使う（ランダムではない）。
@@ -59,7 +60,8 @@ function initSourceImagesFromFiles(files) {
       isLocal: false,
       originalImg: null,
       processedImg: null,
-      thumbUrl: '',
+      // Prefer lightweight thumbnails to avoid downloading multi-megabyte sources just for the grid.
+      thumbUrl: SOURCE_DIR + 'thumbs/' + stem + '.webp',
       displayUrl: '',
       dither: {
         enabled,

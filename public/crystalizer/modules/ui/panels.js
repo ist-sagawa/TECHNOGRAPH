@@ -139,9 +139,18 @@ export function initControlsPanel(container) {
   UIr.thumbs = thumbsCol;
   refreshThumbnails();
 
-  const dropZone = window.createDiv('DROP IMG').parent(srcRow);
+  const actionsCol = window.createDiv('').addClass('source-actions').parent(srcRow);
+
+  const dropZone = window.createDiv('DROP IMG').parent(actionsCol);
   dropZone.addClass('drop-zone-large');
   setupDropZone(dropZone);
+
+  const clearBtn = window.createButton('CLEAR ALL').parent(actionsCol);
+  clearBtn.addClass('source-clear-btn');
+  clearBtn.mousePressed(() => {
+    cancelImagePlacing();
+    clearAllSourceImages();
+  });
 }
 
 let ditApplyTimer = 0;
@@ -460,8 +469,24 @@ export function initDownloadPanel(container) {
     runDownload();
   });
 
-  const sendBtn = window.createButton('SEND').parent(row);
-  sendBtn.addClass('download-toggle');
+  // name/message inputs (below buttons)
+  const meta = window.createDiv('').addClass('footer-meta').parent(col);
+  const rememberedName = (() => {
+    try { return localStorage.getItem('crystalizer.send.name') || ''; } catch { return ''; }
+  })();
+
+  const nameInput = window.createInput(rememberedName);
+  nameInput.addClass('send-input');
+  nameInput.attribute('placeholder', 'name');
+  nameInput.parent(meta);
+
+  const msgInput = window.createElement('textarea', '');
+  msgInput.addClass('send-textarea');
+  msgInput.attribute('placeholder', 'message');
+  msgInput.parent(meta);
+
+  const sendBtn = window.createButton('SEND').parent(col);
+  sendBtn.addClass('send-btn');
   sendBtn.elt.setAttribute('title', 'Send the current image to Sanity');
   sendBtn.mousePressed(async () => {
     cancelImagePlacing();
@@ -493,22 +518,6 @@ export function initDownloadPanel(container) {
       }, 1200);
     }
   });
-
-  // name/message inputs (below buttons)
-  const meta = window.createDiv('').addClass('footer-meta').parent(col);
-  const rememberedName = (() => {
-    try { return localStorage.getItem('crystalizer.send.name') || ''; } catch { return ''; }
-  })();
-
-  const nameInput = window.createInput(rememberedName);
-  nameInput.addClass('send-input');
-  nameInput.attribute('placeholder', 'name');
-  nameInput.parent(meta);
-
-  const msgInput = window.createElement('textarea', '');
-  msgInput.addClass('send-textarea');
-  msgInput.attribute('placeholder', 'message');
-  msgInput.parent(meta);
 
   UIr.sendNameInput = nameInput;
   UIr.sendMessageInput = msgInput;
@@ -620,11 +629,41 @@ async function sendToSanityFromCanvas(meta = {}) {
     }
   });
 
-  if (!blob) return { ok: false, error: 'Failed to create PNG blob' };
+  const makeBlobFallback = async () => {
+    try {
+      const dataUrl = pg.canvas.toDataURL('image/png');
+      const r = await fetch(dataUrl);
+      const b = await r.blob();
+      return b && b.size > 0 ? b : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const finalBlob = (blob && blob.size > 0) ? blob : await makeBlobFallback();
+
+  if (!finalBlob) return { ok: false, error: 'Failed to create PNG blob' };
+
+  // Normalize to an explicit PNG blob (some runtimes may produce a Blob with empty/odd type)
+  const pngBlob = await (async () => {
+    try {
+      const ab = await finalBlob.arrayBuffer();
+      return new Blob([ab], { type: 'image/png' });
+    } catch {
+      return finalBlob;
+    }
+  })();
+
+  // Lightweight diagnostics (helps debug "Invalid image" from Sanity)
+  try {
+    const head = new Uint8Array(await pngBlob.slice(0, 16).arrayBuffer());
+    const hex = Array.from(head).map((b) => b.toString(16).padStart(2, '0')).join(' ');
+    console.log('[SEND] blob', { size: pngBlob.size, type: pngBlob.type, headHex: hex });
+  } catch { }
 
   const filename = `crystalizer_${Date.now()}.png`;
   const fd = new FormData();
-  fd.append('file', blob, filename);
+  fd.append('file', pngBlob, filename);
   fd.append('title', filename.replace(/\.png$/i, ''));
   if (meta?.date) fd.append('date', String(meta.date));
   if (meta?.externalId) fd.append('id', String(meta.externalId));
@@ -638,8 +677,21 @@ async function sendToSanityFromCanvas(meta = {}) {
 
   const json = await res.json().catch(() => null);
   if (!res.ok) {
-    console.error('Sanity upload failed', res.status, json);
-    return { ok: false, status: res.status, response: json };
+    const step = json?.step;
+    const status = json?.status || res.status;
+    const msg =
+      json?.error ||
+      json?.response?.message ||
+      json?.response?.error?.description ||
+      json?.responseText ||
+      'Unknown error';
+
+    console.error('Sanity upload failed', { status, step, json });
+    try {
+      window.alert(`UPLOAD FAILED\nstatus: ${status}${step ? `\nstep: ${step}` : ''}\n${msg}`);
+    } catch { }
+
+    return { ok: false, status, step, response: json };
   }
   console.log('Sanity upload ok', json);
   return json;
@@ -713,6 +765,29 @@ function removeSourceEntry(entry) {
     State.needsCompositeUpdate = true;
   }
 
+  refreshThumbnails();
+}
+
+function clearAllSourceImages() {
+  const all = Array.isArray(State.sourceImages) ? State.sourceImages : [];
+
+  // revoke local blob URLs
+  all.forEach((entry) => {
+    if (!entry) return;
+    if (entry.isLocal && entry.path && typeof entry.path === 'string' && entry.path.startsWith('blob:')) {
+      try { URL.revokeObjectURL(entry.path); } catch { }
+    }
+  });
+
+  State.sourceImages = [];
+  State.currentSourceName = '';
+  State.currentSourcePath = '';
+  State.currentSourceImg = null;
+  State.isImagePlacing = false;
+  State.placingImgName = '';
+  State.placingImg = null;
+  State.pendingImagePlaceFace = null;
+  State.needsCompositeUpdate = true;
   refreshThumbnails();
 }
 

@@ -3,7 +3,7 @@ import BaseHead from "../components/BaseHead.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
 import { SITE_TITLE, SITE_DESCRIPTION } from "../consts";
-const { title, description, isFrontPage, showSplash } = Astro.props;
+const { title, description, isFrontPage, showSplash, showLogo } = Astro.props;
 ---
 
 <!doctype html>
@@ -27,7 +27,7 @@ const { title, description, isFrontPage, showSplash } = Astro.props;
     }
 
     <div id="main-content" class={showSplash ? "with-splash" : ""}>
-      <h1><a href="/"><img src="/logo-plus.svg" alt="TECHNOGRAPH" /></a></h1>
+      <h1 class={showLogo === false ? "hidden" : ""}><a href="/"><img src="/logo-plus.svg" alt="TECHNOGRAPH" /></a></h1>
       <div class="container">
         <div id="swup" class="transition-main">
           <slot name="content" />
@@ -90,6 +90,9 @@ const { title, description, isFrontPage, showSplash } = Astro.props;
         img {
           width: max(get_pc_vw(173), 173px);
           height: max(get_pc_vw(173), 173px);
+        }
+        &.hidden {
+          display: none;
         }
       }
       .container {
