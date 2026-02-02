@@ -1,0 +1,574 @@
+@import url("https://fonts.googleapis.com/css2?family=Loved+by+the+King&family=Press+Start+2P&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap");
+
+* {
+  box-sizing: border-box;
+}
+
+body.sketch {
+  #p5_loading {
+    background: #000;
+    font-family: "Press Start 2P", "Space Mono", sans-serif;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    z-index: 2;
+    color: #fff;
+  }
+
+  /* レスポンシブ対応 */
+  @media screen and (max-width: 768px) {
+    canvas {
+      width: 100vw;
+      height: 100vh;
+    }
+  }
+
+  h1 {
+    display: none;
+  }
+}
+
+button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  outline: none;
+  padding: 0;
+  appearance: none;
+  font-family: "Space Mono", monospace;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #c1c1c1 !important;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  font-family: "Space Mono", monospace;
+  color: #1a1a1a;
+}
+
+/* Layout Root */
+#app-layout {
+  display: flex !important;
+  flex-direction: row !important;
+  /* Side by Side */
+  justify-content: center !important;
+  align-items: center !important;
+  height: 100vh !important;
+  width: 100vw !important;
+  padding: 40px;
+  gap: 8px;
+}
+
+/* Canvas Area (Left) */
+#canvas-container {
+  background-color: #ffffff;
+  border: 1px solid #000000;
+  border-radius: 4px;
+  /* Figma: 640px square container */
+  width: var(--canvas-container-w, 640px);
+  height: var(--canvas-container-h, 640px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+#canvas-container canvas {
+  /* Canvas itself */
+  position: static !important;
+  /* Override sketch.scss fixed positioning */
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* UI Panel (Right) */
+#ui-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 500px;
+  /* Responsive safe width */
+  max-width: 576px;
+  /* Figma max */
+  height: 960px;
+  /* Match canvas height approx */
+  flex-shrink: 0;
+}
+
+/* Sections */
+.ui-section {
+  border: 1px solid #1a1a1a;
+  background: #d9d9d9;
+  border-radius: 4px;
+  padding: 12px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Header Section */
+.header-section {
+  display: flex;
+  flex-direction: row;
+  height: 120px;
+  background: #d9d9d9;
+  border: 1px solid #1a1a1a;
+  border-radius: 4px;
+  /* overflow: hidden; */
+  /* For rounded corners of children */
+}
+
+.header-title-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid #1a1a1a;
+  background: #d9d9d9;
+}
+
+.header-section .app-title {
+  font-family: "Loved by the King", cursive;
+  font-size: 80px;
+  line-height: 1;
+  color: #ff3235;
+  letter-spacing: -1.5px;
+  /* Figma tracking */
+  margin: 0;
+  padding: 0;
+  position: static;
+  background-color: transparent;
+  transform: translateY(8px) rotate(-8deg);
+}
+
+.header-info-area {
+  width: 224px;
+  display: flex;
+  flex-direction: column;
+}
+
+.info-item {
+  height: 40px;
+  background: #d9d9d9;
+  border-bottom: 1px solid #1a1a1a;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Space Mono", monospace;
+  font-size: 9px;
+  color: #000;
+}
+
+.info-item:last-child {
+  border-bottom: none;
+}
+
+.info-label {
+  position: absolute;
+  top: 4px;
+  left: 8px;
+  font-weight: bold;
+  font-size: 9px;
+  text-transform: none;
+}
+
+.info-value {
+  font-weight: normal;
+}
+
+/* Remove old app-desc if present */
+.app-desc {
+  display: none;
+}
+
+/* Controls Container */
+.controls-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0px;
+  overflow-y: auto;
+  border: 1px solid #1a1a1a;
+  /* Container itself */
+  background: transparent;
+  padding: 0;
+  border-radius: 4px;
+}
+
+/* Inner Control Blocks (White bg) */
+.control-block {
+  background: #ffffff;
+  /* border: 1px solid #1a1a1a; */
+  border-radius: 4px;
+  padding: 16px;
+}
+
+.control-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px;
+}
+
+.control-label {
+  font-size: 11px;
+}
+
+/* Sliders */
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 1px;
+  background: #000;
+  outline: none;
+  margin: 0px 0;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  /* Circle */
+  background: #ffffff;
+  border: 1px solid #000000;
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #000000;
+  cursor: pointer;
+}
+
+/* Buttons */
+/* Section Headers (Geneate / Source Image) */
+.section-header {
+  background: #9c9c9c;
+  height: 16px;
+  min-height: 16px;
+  /* Adjusted for padding + text */
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border-bottom: 1px solid #1a1a1a;
+  border-top: 1px solid #1a1a1a;
+  /* Connect to content */
+}
+
+.section-header:first-child {
+  border-top: none;
+}
+
+/* Arrange Section */
+.arrange-row {
+  display: flex;
+  width: 100%;
+  /* If needed internal separator */
+}
+
+/* Dither Section */
+.dither-row {
+  display: flex;
+  width: 100%;
+}
+
+.dither-actions-col {
+  width: 50%;
+  border-left: 1px solid #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: #d9d9d9;
+}
+
+.dither-btn {
+  width: 100%;
+  height: 32px;
+  border: 1px solid #1a1a1a;
+  background: #d9d9d9;
+  border-radius: 0;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.dither-btn:hover {
+  background: #ccc;
+}
+
+.dither-btn.active {
+  background: #000;
+  color: #fff;
+}
+
+.transform-col {
+  width: 50%;
+  border-left: 1px solid #1a1a1a;
+  display: flex;
+  flex-direction: column;
+}
+
+.transform-btn {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #d9d9d9;
+  font-size: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 4px;
+}
+
+.transform-btn:hover {
+  background: #ccc;
+}
+
+.transform-btn.active {
+  background: #000;
+  color: #fff;
+}
+
+.sliders-col {
+  flex: 1;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  /* Tight stacking */
+  background: #d9d9d9;
+}
+
+.section-label {
+  font-family: "Space Mono", monospace;
+  font-size: 9px;
+  color: #000;
+  text-transform: uppercase;
+}
+
+/* Operation Content Container */
+.operation-content {
+  /* border: 1px solid #1a1a1a; */
+  /* Spacing between sections */
+  background: #d9d9d9;
+}
+
+/* Generate Row */
+.generate-row {
+  display: flex;
+  height: 90px;
+  width: 100%;
+}
+
+.btn-blue {
+  background-color: blue !important;
+  /* Figma: bg-[blue] */
+  color: white !important;
+  font-size: 14px;
+  border: none;
+  border-radius: 0;
+  flex: 1;
+}
+
+.btn-blue:hover {
+  opacity: 0.9;
+}
+
+.btn-square {
+  width: 90px;
+  height: 90px;
+  background: #d9d9d9;
+  border-left: 1px solid #1a1a1a;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.btn-square:hover {
+  background: #ccc;
+}
+
+/* Source Image Section */
+.source-row {
+  display: flex;
+  height: 100%;
+  /* Figma approx */
+  width: 100%;
+  padding: 4px;
+}
+
+.drop-zone-large {
+  width: 138px;
+  flex-shrink: 0;
+  background: #d9d9d9;
+  border: 1px dashed #1a1a1a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.drop-zone-large:hover {
+  background: #b0b0b0;
+}
+
+/* Thumbnails */
+.thumbs-col {
+  flex: 1;
+  /* Expand to fill space */
+  display: flex;
+  flex-direction: row;
+  align-content: flex-start;
+  /* Horizontal wrap */
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 4px;
+  overflow-y: auto;
+}
+
+.thumb-item {
+  width: 40px;
+  height: 40px;
+  background: #eee;
+  border: 1px solid #000;
+  flex-shrink: 0;
+  cursor: pointer;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.thumb-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 14px;
+  height: 14px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.85);
+  color: #fff;
+  font-size: 12px;
+  line-height: 14px;
+  border-radius: 2px;
+  pointer-events: auto;
+}
+
+.thumb-item:hover .thumb-remove {
+  display: flex;
+}
+
+.thumb-item.active {
+  border: 2px solid blue;
+}
+
+/* Download Section (Standalone) */
+.download-section {
+  background: #d4ff00;
+  height: 50px;
+  border: 1px solid #1a1a1a;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: auto;
+  font-size: 12px;
+  /* Push to bottom */
+}
+
+.footer-row-inner {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.download-section {
+  flex: 1;
+}
+
+.download-toggle {
+  width: 90px;
+  height: 50px;
+  background: #d9d9d9;
+  border: 1px solid #1a1a1a;
+  border-radius: 4px;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.download-toggle:hover {
+  background: #ccc;
+}
+
+.download-toggle.active {
+  background: #000;
+  color: #fff;
+}
+
+/* Overrides for controls.js helpers if needed */
+.control-block {
+  border: none !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.9;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0.9;
+  }
+}
+
+#painting-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  /* Offset from right panel */
+  background: #0000ff;
+  color: #fff;
+  padding: 8px 16px;
+  font-size: 10px;
+  z-index: 1000;
+  display: none;
+  animation: pulse .1s infinite;
+  pointer-events: none;
+  width: 100%;
+  text-align: center;
+
+  &.active {
+    display: block;
+  }
+}

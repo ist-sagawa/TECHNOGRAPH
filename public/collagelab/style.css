@@ -1,0 +1,306 @@
+@import url("https://fonts.googleapis.com/css2?family=Asset&family=Press+Start+2P&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap");
+
+* {
+  box-sizing: border-box;
+}
+
+body.sketch {
+  margin: 0;
+  padding: 0;
+  background-color: #121212 !important;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  font-family: "Space Mono", monospace;
+}
+
+/* Layout Root */
+#app-layout {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-start !important;
+  align-items: stretch !important;
+  height: 100vh !important;
+  width: 100vw !important;
+  min-height: 100vh !important;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  font-size: 9px;
+  font-family: "Space Mono", monospace;
+}
+
+#top-region {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Panels */
+.side-panel {
+  background-color: #0000ff;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+#left-panel {
+  width: 280px;
+  padding: 20px;
+}
+
+#center-panel {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  overflow: auto;
+  position: relative;
+}
+
+#right-panel {
+  width: 320px;
+}
+
+#bottom-panel {
+  height: 140px;
+  background-color: #0000ac;
+  color: #fff;
+  display: flex;
+  padding: 10px;
+  gap: 15px;
+}
+
+/* Canvas styling */
+body.sketch canvas {
+  display: block;
+  position: static !important;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+  background-color: #fff;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto !important;
+  height: auto !important;
+}
+
+
+#painting-indicator.active {
+  display: block;
+  animation: painting-blink 0.5s steps(1, end) infinite;
+}
+
+@keyframes painting-blink {
+  0% { opacity: 1; }
+  50% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* Typography */
+.app-title {
+  font-family: "Press Start 2P";
+  font-size: 9px;
+  margin-bottom: 20px;
+}
+
+h2 {
+  font-size: 10px;
+  margin: 20px 0 10px 0;
+  font-family: "Press Start 2P";
+  text-transform: uppercase;
+}
+
+/* Custom UI Components */
+button {
+  font-family: "Space Mono", monospace;
+  font-weight: bold;
+  background: #fff;
+  color: #0000ff;
+  border: none;
+  padding: 10px;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-size: 11px;
+  transition: all 0.1s;
+}
+
+button:hover {
+  background: #eeeeee;
+}
+
+button:active {
+  background: #cccccc;
+}
+
+button.active {
+  background: #0000ff;
+  color: #fff;
+  outline: 2px solid #fff;
+}
+
+/* Tabs */
+.tab-header {
+  display: flex;
+  background: #0000ff;
+  border-bottom: 4px solid #bbbbbb;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 12px;
+  font-family: "Press Start 2P";
+  font-size: 8px;
+  background: #0000ff;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  background: #fff;
+  color: #0000ff;
+}
+
+.panel-content {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+/* Source / Bottom Area */
+#source-label {
+  font-family: "Press Start 2P";
+  font-size: 10px;
+  writing-mode: vertical-lr;
+  transform: rotate(180deg);
+  text-align: right;
+}
+
+#image-grid-container {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  align-items: center;
+  flex: 1;
+  padding: 5px;
+}
+
+#image-grid-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+#image-grid-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+#image-grid-container::-webkit-scrollbar-thumb {
+  background: #fff;
+  border-radius: 4px;
+}
+
+.image-thumb {
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+  background-color: #888;
+  background-size: cover;
+  background-position: center;
+  border: 4px solid #bbbbbb;
+  cursor: pointer;
+}
+
+.image-thumb.selected {
+  border-color: #fff;
+}
+
+.drop-zone {
+  /* legacy感: 左パネル幅(280px)くらいに合わせる */
+  width: 280px;
+  height: 80px;
+  flex: 0 0 280px;
+  border: 2px dashed #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  text-align: center;
+  padding: 10px;
+  cursor: pointer;
+}
+
+/* Sliders / UI in panel */
+.ui-row {
+  margin-bottom: 12px;
+}
+
+.preview-container {
+  border: 2px solid #fff;
+  margin-bottom: 15px;
+  background: #000;
+}
+
+/* UI Preview Images (Dither/Brush) */
+.preview-img,
+.image-thumb,
+canvas {
+  image-rendering: -moz-crisp-edges !important;
+  image-rendering: crisp-edges !important;
+  image-rendering: pixelated !important;
+}
+
+/* Hide/Show logic handled by script but class helps */
+.hidden {
+  display: none !important;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+.crystalized-btn {
+  background-color: #fff !important;
+  color: #0000ff !important;
+  transition: all 0.1s;
+}
+
+.crystalized-btn:hover {
+  background-color: #000 !important;
+  color: #fff !important;
+  border-color: #fff !important;
+}
+
+.crystalized-btn:active {
+  background-color: #000 !important;
+  color: #fff !important;
+  transform: translateY(2px);
+}
+
+#painting-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  /* Offset from right panel */
+  background: #0000ff;
+  color: #fff;
+  padding: 8px 16px;
+  font-family: 'Press Start 2P', cursive;
+  font-size: 10px;
+  border: 4px solid #fff;
+  z-index: 1000;
+  display: none;
+  animation: pulse .2s infinite;
+  pointer-events: none;
+}

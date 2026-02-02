@@ -30,6 +30,28 @@ Inside of your Astro project, you'll see the following folders and files:
 └── package.json
 ```
 
+## Development
+
+### Crystalizer: Sanityへ画像送信（ローカルテスト）
+
+`SEND` ボタンは `/api/crystalizer/upload`（Cloudflare Pages Functions）に multipart でPNGを送って、Sanityに asset + `crystalizerImage` ドキュメントを作成します。
+
+ローカルで試すには Wrangler を使うのが一番簡単です。
+
+1) 環境変数を用意
+
+`.dev.vars` を作成（ひな形: `.dev.vars.example`）して、`SANITY_API_WRITE_TOKEN`（write権限）を入れてください。
+
+2) Astro dev を起動
+
+`npm run dev`
+
+3) Functions込みで起動（別ターミナル）
+
+`npx -y wrangler pages dev --proxy 4321`
+
+`wrangler pages dev` のURL（通常 `http://127.0.0.1:8788`）でサイトを開くと、`/api/crystalizer/upload` がローカルでも動きます。
+
 Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
 
 There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.

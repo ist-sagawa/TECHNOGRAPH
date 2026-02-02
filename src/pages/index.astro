@@ -93,26 +93,42 @@ sketchesInfoWithIndex.sort((a, b) => {
     <div class="block about">
       <h2><a href="/about">About</a></h2>
     </div>
-    <div class="block experiments">
-      <h2>Experiments</h2>
-      <ul>
-        {
-          sketchesInfoWithIndex.map((sketch) => {
-            return (
-              <li>
-                <div class="num">({sketch.index})</div>
-                <div class="link">
-                  <a href={sketch.url}>
-                    <div class="date">@{sketch.date}</div>
-                    <div class="name">{sketch.name}</div>
-                  </a>
-                </div>
-              </li>
-            );
-          })
-        }
-        {sketchesInfoWithIndex.length === 0 && <p>No sketches found.</p>}
-      </ul>
+    <div class="stack">
+      <div class="block works">
+        <h2>Works</h2>
+        <ul>
+          <li>
+            <div class="num">(W1)</div>
+            <div class="link">
+              <a href="/collagelab/">
+                <div class="date">@tool</div>
+                <div class="name">CollageLab</div>
+              </a>
+            </div>
+          </li>
+        </ul>
+      </div>
+      <div class="block experiments">
+        <h2>Experiments</h2>
+        <ul>
+          {
+            sketchesInfoWithIndex.map((sketch) => {
+              return (
+                <li>
+                  <div class="num">({sketch.index})</div>
+                  <div class="link">
+                    <a href={sketch.url}>
+                      <div class="date">@{sketch.date}</div>
+                      <div class="name">{sketch.name}</div>
+                    </a>
+                  </div>
+                </li>
+              );
+            })
+          }
+          {sketchesInfoWithIndex.length === 0 && <p>No sketches found.</p>}
+        </ul>
+      </div>
     </div>
     <!-- <h2>Experiments</h2> -->
 
@@ -135,6 +151,15 @@ sketchesInfoWithIndex.sort((a, b) => {
     font-size: 8px;
     .about {
       width: max(get_pc_vw(169), 169px);
+    }
+    .stack {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: max(get_pc_vw(38), 38px);
+    }
+    .works {
+      width: 100%;
     }
     .experiments {
       width: 100%;
@@ -220,7 +245,7 @@ sketchesInfoWithIndex.sort((a, b) => {
   import * as $ from "@/scripts/modules/Util";
 
   document.addEventListener("DOMContentLoaded", () => {
-    $.qsa(".experiments li a").forEach((a) => {
+    $.qsa(".experiments li a, .works li a").forEach((a) => {
       a.addEventListener("mouseenter", (e) => {
         const target = e.target as HTMLAnchorElement;
         const link = target?.href;

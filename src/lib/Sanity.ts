@@ -36,6 +36,33 @@ export interface Post {
   category?: { title: string };
 }
 
+export interface CrystalizerImage {
+  _id: string;
+  title?: string;
+  date?: string;
+  externalId?: string;
+  name?: string;
+  message?: string;
+  createdAt?: string;
+  image?: any;
+}
+
+export async function getCrystalizerImages(opts: { limit?: number } = {}): Promise<CrystalizerImage[]> {
+  const limit = Number.isFinite(opts.limit) ? Math.max(1, Math.floor(opts.limit as number)) : 120;
+  const query = `*[_type == "crystalizerImage"] | order(coalesce(date, createdAt) desc, createdAt desc) [0...$limit]{
+    _id,
+    title,
+    date,
+    externalId,
+    name,
+    message,
+    createdAt,
+    image
+  }`;
+  const images = await client.fetch(query, { limit });
+  return Array.isArray(images) ? images : [];
+}
+
 export async function getPostBySlug(slug: string): Promise<Post | null> {
   const query = `*[_type == "post" && slug.current == $slug][0]{title, body, mainImage}`;
   const params = { slug };

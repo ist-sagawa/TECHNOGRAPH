@@ -1,0 +1,193 @@
+---
+import Page from "@/layouts/Page.astro";
+import { getCrystalizerImages, imageUrlFor, type CrystalizerImage } from "@/lib/Sanity";
+
+const images: CrystalizerImage[] = await getCrystalizerImages({ limit: 240 });
+
+const fmtDate = (iso?: string) => {
+  if (!iso) return "";
+  // date はYYYY-MM-DDが入る想定。createdAtはISO。
+  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso);
+  const y = String(d.getFullYear());
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${dd}`;
+};
+---
+
+<Page title="Crystalizer Gallery" showSplash={false}>
+  <main slot="content" class="wrap">
+    <header class="head">
+      <h2>Crystalizer Gallery</h2>
+      <div class="meta">
+        <a href="/crystalizer/">← Crystalizer</a>
+        <span class="count">{images.length} items</span>
+      </div>
+    </header>
+
+    {images.length === 0 && <p class="empty">まだ登録がありません（SENDで送るとここに出ます）。</p>}
+
+    <section class="grid">
+      {images.map((item) => {
+        const imgUrl = item.image ? imageUrlFor(item.image).width(900).quality(80).auto("format").url() : "";
+        const date = item.date || item.createdAt;
+        const title = item.title || item.externalId || "(untitled)";
+        return (
+          <article class="card">
+            <a class="img" href={imgUrl} target="_blank" rel="noreferrer">
+              {imgUrl ? <img src={imgUrl} alt={title} loading="lazy" /> : <div class="ph">no image</div>}
+            </a>
+            <div class="body">
+              <div class="row">
+                <div class="title">{title}</div>
+                <div class="date">{fmtDate(date)}</div>
+              </div>
+              <div class="sub">
+                {item.name && <span class="pill">{item.name}</span>}
+                {item.externalId && <span class="pill mono">#{item.externalId}</span>}
+              </div>
+              {item.message && <div class="msg">{item.message}</div>}
+            </div>
+          </article>
+        );
+      })}
+    </section>
+  </main>
+</Page>
+
+<style lang="scss">
+  .wrap {
+    width: 100%;
+    max-width: 1200px;
+  }
+
+  .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 24px;
+
+    h2 {
+      font-size: 14px;
+      letter-spacing: 0.04em;
+      margin: 0;
+    }
+  }
+
+  .meta {
+    display: flex;
+    gap: 14px;
+    align-items: baseline;
+
+    a {
+      font-size: 10px;
+      opacity: 0.85;
+      text-decoration: underline;
+    }
+
+    .count {
+      font-size: 10px;
+      opacity: 0.65;
+    }
+  }
+
+  .empty {
+    font-size: 12px;
+    opacity: 0.8;
+    margin: 24px 0 40px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+
+    @media (max-width: 900px) {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @media (max-width: 520px) {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .card {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(0, 0, 0, 0.2);
+  }
+
+  .img {
+    display: block;
+    aspect-ratio: 3 / 4;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.04);
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+  }
+
+  .ph {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    font-size: 11px;
+    opacity: 0.6;
+  }
+
+  .body {
+    padding: 10px 10px 12px;
+  }
+
+  .row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .title {
+    font-size: 11px;
+    line-height: 1.2;
+    word-break: break-word;
+  }
+
+  .date {
+    font-size: 10px;
+    opacity: 0.65;
+    white-space: nowrap;
+  }
+
+  .sub {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .pill {
+    font-size: 10px;
+    padding: 2px 6px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    opacity: 0.9;
+  }
+
+  .mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  }
+
+  .msg {
+    margin-top: 10px;
+    font-size: 11px;
+    opacity: 0.85;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+</style>

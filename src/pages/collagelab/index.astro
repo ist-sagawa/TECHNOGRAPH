@@ -1,0 +1,11 @@
+---
+import SketchLayout from "../../layouts/SketchLayout.astro";
+import "../../styles/sketch.scss";
+const title = "CollageLab";
+const date = "collagelab";
+---
+
+<SketchLayout title={title} date={date}>
+  <link slot="head" rel="stylesheet" href={`/${date}/style.css`} />
+  <script slot="head" type="module" src={`/${date}/main.js`}></script>
+</SketchLayout>
