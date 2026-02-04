@@ -26,3 +26,6 @@ pnpm-debug.log*
 
 # Cloudflare Wrangler cache/tmp
 .wrangler/
+
+# local TLS / CA bundles
+.certs/
