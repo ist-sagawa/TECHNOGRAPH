@@ -45,6 +45,12 @@ export default defineType({
       type: 'image',
       options: { hotspot: true },
     }),
+    defineField({
+      name: 'imageTransparent',
+      title: 'Image (Transparent)',
+      type: 'image',
+      options: { hotspot: true },
+    }),
   ],
   preview: {
     select: {

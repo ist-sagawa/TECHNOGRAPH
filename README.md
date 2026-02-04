@@ -34,7 +34,7 @@ Inside of your Astro project, you'll see the following folders and files:
 
 ### Crystalizer: Sanityへ画像送信（ローカルテスト）
 
-`SEND` ボタンは `/api/crystalizer/upload`（Cloudflare Pages Functions）に multipart でPNGを送って、Sanityに asset + `crystalizerImage` ドキュメントを作成します。
+`SEND` ボタンは `/api/crystallizer/upload`（Cloudflare Pages Functions）に multipart でPNGを送って、Sanityに asset + `crystalizerImage` ドキュメントを作成します。
 
 ローカルで試すには Wrangler を使うのが一番簡単です。
 
@@ -50,7 +50,7 @@ Inside of your Astro project, you'll see the following folders and files:
 
 `npx -y wrangler pages dev --proxy 4321`
 
-`wrangler pages dev` のURL（通常 `http://127.0.0.1:8788`）でサイトを開くと、`/api/crystalizer/upload` がローカルでも動きます。
+`wrangler pages dev` のURL（通常 `http://127.0.0.1:8788`）でサイトを開くと、`/api/crystallizer/upload` がローカルでも動きます。
 
 Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
 

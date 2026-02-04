@@ -1,7 +1,7 @@
 /**
- * Upload a generated Crystalizer image to Sanity.
+ * Upload a generated Crystallizer image to Sanity.
  *
- * Endpoint: POST /api/crystalizer/upload
+ * Endpoint: POST /api/crystallizer/upload
  * Body: multipart/form-data
  *   - file: image/png (required)
  *   - title: string (optional)
@@ -69,112 +69,19 @@ function json(data, init = {}) {
   });
 }
 
-export async function onRequestPost(context) {
-  const tokenRaw = context?.env?.SANITY_API_WRITE_TOKEN || process.env.SANITY_API_WRITE_TOKEN;
-  const token = String(tokenRaw || '')
-    .trim()
-    // allow .env style quoted values
-    .replace(/^"(.*)"$/, '$1')
-    .replace(/^'(.*)'$/, '$1')
-    .trim();
-  if (!token) {
-    return json(
-      {
-        ok: false,
-        error: 'Missing SANITY_API_WRITE_TOKEN env var.'
-      },
-      { status: 500 }
-    );
-  }
-
-  const ct = context.request.headers.get('content-type') || '';
-  if (!ct.toLowerCase().includes('multipart/form-data')) {
-    return json(
-      {
-        ok: false,
-        error: 'Content-Type must be multipart/form-data'
-      },
-      { status: 400 }
-    );
-  }
-
-  const form = await context.request.formData();
-  const file = form.get('file');
-  const title = String(form.get('title') || '').trim();
-  const dateRaw = String(form.get('date') || '').trim();
-  const externalIdRaw = String(form.get('id') || form.get('externalId') || '').trim();
-  const name = String(form.get('name') || '').trim();
-  const message = String(form.get('message') || '').trim();
-
-  if (!(file instanceof File)) {
-    return json(
-      {
-        ok: false,
-        error: 'Missing form field: file'
-      },
-      { status: 400 }
-    );
-  }
-
-  const size = Number(file.size || 0);
-  const type = String(file.type || '').trim();
+async function uploadSanityImageAsset({ token, file, filename }) {
+  const size = Number(file?.size || 0);
+  const type = String(file?.type || '').trim();
   if (!size || size <= 0) {
-    return json(
-      {
-        ok: false,
-        error: 'Uploaded file is empty (0 bytes).'
-      },
-      { status: 400 }
-    );
+    return { ok: false, error: 'Uploaded file is empty (0 bytes).' };
   }
-
   if (type && !type.startsWith('image/')) {
-    return json(
-      {
-        ok: false,
-        error: `Uploaded file is not an image (type: ${type}).`
-      },
-      { status: 400 }
-    );
+    return { ok: false, error: `Uploaded file is not an image (type: ${type}).` };
   }
 
-  const filename = file.name || `crystalizer_${Date.now()}.png`;
-
-  const now = new Date();
-  const dateAuto = now.toISOString().slice(0, 10); // YYYY-MM-DD
-  const date = dateRaw || dateAuto;
-
-  // externalId: always `cr` prefix
-  const rand = (() => {
-    try {
-      // Cloudflare Workers supports crypto.randomUUID in most runtimes
-      return (crypto?.randomUUID?.() || '').replace(/-/g, '').slice(0, 8);
-    } catch {
-      return String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
-    }
-  })();
-  const externalId = externalIdRaw || `cr${Date.now()}_${rand}`;
-
-  const sanitizeDocId = (id) => {
-    const s = String(id || '').trim();
-    // Sanity document _id allows letters/numbers/_- and a few others; keep it conservative.
-    const cleaned = s.replace(/[^a-zA-Z0-9_\-\.]/g, '_');
-    return cleaned || `cr${Date.now()}_${rand}`;
-  };
-
-  // 1) Upload asset
-  // Cloudflare Workers では「受信した File をそのまま別FormDataへ」すると
-  // 稀にバイナリが壊れて Sanity 側で Invalid image になることがあるため、
-  // ArrayBuffer 経由で新しい Blob を作って送る。
   const buf = await file.arrayBuffer();
   if (!buf || buf.byteLength <= 0) {
-    return json(
-      {
-        ok: false,
-        error: 'Failed to read uploaded file bytes.'
-      },
-      { status: 400 }
-    );
+    return { ok: false, error: 'Failed to read uploaded file bytes.' };
   }
 
   const sniff = sniffImageType(buf);
@@ -206,8 +113,6 @@ export async function onRequestPost(context) {
     return { res, text, json, method: 'multipart' };
   };
 
-  // Some Workers/Wrangler environments can corrupt multipart bodies when proxying.
-  // As a fallback, try raw binary upload with Content-Type.
   const doRawUpload = async () => {
     const res = await fetch(assetUrl, {
       method: 'POST',
@@ -224,11 +129,7 @@ export async function onRequestPost(context) {
 
   let assetAttempt = await doMultipartUpload();
   if (!assetAttempt.res.ok) {
-    const msg =
-      assetAttempt.json?.message ||
-      assetAttempt.json?.error ||
-      assetAttempt.text ||
-      '';
+    const msg = assetAttempt.json?.message || assetAttempt.json?.error || assetAttempt.text || '';
     const details = String(assetAttempt.json?.details || '');
     const shouldRetryRaw =
       String(msg).toLowerCase().includes('invalid image') ||
@@ -246,40 +147,148 @@ export async function onRequestPost(context) {
   const assetUploadMethod = assetAttempt.method;
 
   if (!assetRes.ok) {
-    return json(
-      {
-        ok: false,
-        step: 'uploadAsset',
-        status: assetRes.status,
-        uploadMethod: assetUploadMethod,
-        received: {
-          filename,
-          size,
-          type,
-          contentType,
-          magic: sniff.magic,
-          headHex: sniff.headHex
-        },
-        response: assetJson,
-        responseText: assetJson ? undefined : assetText
+    return {
+      ok: false,
+      step: 'uploadAsset',
+      status: assetRes.status,
+      uploadMethod: assetUploadMethod,
+      received: {
+        filename,
+        size,
+        type,
+        contentType,
+        magic: sniff.magic,
+        headHex: sniff.headHex
       },
-      { status: assetRes.status || 502 }
-    );
+      response: assetJson,
+      responseText: assetJson ? undefined : assetText
+    };
   }
 
   const assetId = assetJson?.document?._id;
   const asset = assetJson?.document;
   if (!assetId) {
+    return {
+      ok: false,
+      step: 'uploadAsset',
+      error: 'Sanity asset upload succeeded but no document._id returned',
+      response: assetJson
+    };
+  }
+
+  return { ok: true, asset, assetId, uploadMethod: assetUploadMethod };
+}
+
+export async function onRequestPost(context) {
+  const tokenRaw = context?.env?.SANITY_API_WRITE_TOKEN || process.env.SANITY_API_WRITE_TOKEN;
+  const token = String(tokenRaw || '')
+    .trim()
+    // allow .env style quoted values
+    .replace(/^"(.*)"$/, '$1')
+    .replace(/^'(.*)'$/, '$1')
+    .trim();
+  if (!token) {
     return json(
       {
         ok: false,
-        step: 'uploadAsset',
-        error: 'Sanity asset upload succeeded but no document._id returned',
-        response: assetJson
+        error: 'Missing SANITY_API_WRITE_TOKEN env var.'
       },
-      { status: 502 }
+      { status: 500 }
     );
   }
+
+  const ct = context.request.headers.get('content-type') || '';
+  if (!ct.toLowerCase().includes('multipart/form-data')) {
+    return json(
+      {
+        ok: false,
+        error: 'Content-Type must be multipart/form-data'
+      },
+      { status: 400 }
+    );
+  }
+
+  const form = await context.request.formData();
+  const file = form.get('file');
+  const fileTransparent = form.get('fileTransparent');
+  const title = String(form.get('title') || '').trim();
+  const dateRaw = String(form.get('date') || '').trim();
+  const externalIdRaw = String(form.get('id') || form.get('externalId') || '').trim();
+  const name = String(form.get('name') || '').trim();
+  const message = String(form.get('message') || '').trim();
+
+  if (!(file instanceof File)) {
+    return json(
+      {
+        ok: false,
+        error: 'Missing form field: file'
+      },
+      { status: 400 }
+    );
+  }
+
+  if (fileTransparent != null && !(fileTransparent instanceof File)) {
+    return json(
+      {
+        ok: false,
+        error: 'Invalid form field: fileTransparent'
+      },
+      { status: 400 }
+    );
+  }
+
+  const filename = file.name || `crystallizer_${Date.now()}.png`;
+  const filenameTransparent =
+    (fileTransparent instanceof File && (fileTransparent.name || '').trim()) ||
+    filename.replace(/\.(png|jpg|jpeg|webp)$/i, '_transparent.$1');
+
+  const now = new Date();
+  const dateAuto = now.toISOString().slice(0, 10); // YYYY-MM-DD
+  const date = dateRaw || dateAuto;
+
+  // externalId: always `cr` prefix
+  const rand = (() => {
+    try {
+      // Cloudflare Workers supports crypto.randomUUID in most runtimes
+      return (crypto?.randomUUID?.() || '').replace(/-/g, '').slice(0, 8);
+    } catch {
+      return String(Math.floor(Math.random() * 1e8)).padStart(8, '0');
+    }
+  })();
+  const externalId = externalIdRaw || `cr${Date.now()}_${rand}`;
+
+  const sanitizeDocId = (id) => {
+    const s = String(id || '').trim();
+    // Sanity document _id allows letters/numbers/_- and a few others; keep it conservative.
+    const cleaned = s.replace(/[^a-zA-Z0-9_\-\.]/g, '_');
+    return cleaned || `cr${Date.now()}_${rand}`;
+  };
+
+  // 1) Upload asset(s)
+  const primaryUpload = await uploadSanityImageAsset({ token, file, filename });
+  if (!primaryUpload.ok) {
+    return json(primaryUpload, { status: primaryUpload.status || 502 });
+  }
+
+  const transparentUpload =
+    fileTransparent instanceof File
+      ? await uploadSanityImageAsset({ token, file: fileTransparent, filename: filenameTransparent })
+      : null;
+  if (transparentUpload && !transparentUpload.ok) {
+    return json(
+      {
+        ok: false,
+        step: 'uploadAssetTransparent',
+        primary: { asset: primaryUpload.asset, uploadMethod: primaryUpload.uploadMethod },
+        transparent: transparentUpload
+      },
+      { status: transparentUpload.status || 502 }
+    );
+  }
+
+  const asset = primaryUpload.asset;
+  const assetId = primaryUpload.assetId;
+  const assetUploadMethod = primaryUpload.uploadMethod;
 
   // 2) Create a document that references the asset (so it shows up as an item in Studio)
   const docId = sanitizeDocId(externalId);
@@ -295,7 +304,13 @@ export async function onRequestPost(context) {
     image: {
       _type: 'image',
       asset: { _type: 'reference', _ref: assetId }
-    }
+    },
+    imageTransparent: transparentUpload?.ok
+      ? {
+          _type: 'image',
+          asset: { _type: 'reference', _ref: transparentUpload.assetId }
+        }
+      : undefined
   };
 
   const mutateUrl = `https://${PROJECT_ID}.api.sanity.io/v${API_VERSION}/data/mutate/${DATASET}?returnIds=true`;
@@ -336,6 +351,7 @@ export async function onRequestPost(context) {
   return json({
     ok: true,
     asset,
+    assetTransparent: transparentUpload?.ok ? transparentUpload.asset : undefined,
     documentId: createdId,
     uploadMethod: assetUploadMethod
   });

@@ -1,7 +1,7 @@
 /**
- * Public gallery endpoint for Crystalizer images.
+ * Public gallery endpoint for Crystallizer images.
  *
- * Endpoint: GET /api/crystalizer/gallery?limit=240
+ * Endpoint: GET /api/crystallizer/gallery?limit=240
  *
  * Returns:
  *  { ok: true, items: Array<{...}> }

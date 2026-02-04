@@ -55,7 +55,7 @@ export const State = {
   // エフェクト（ディザリング）
   effectEnabled: false,
   effectParams: {
-    type: 'atkinson',
+    type: 'bayer',
     threshold: 128,
     pixelSize: 2,
     invert: false,

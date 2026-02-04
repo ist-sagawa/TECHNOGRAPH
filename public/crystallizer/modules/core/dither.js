@@ -4,7 +4,7 @@ import { rgbToHsb, hsbToRgb, random } from './math.js';
 
 export function createDefaultDitherParams() {
   return {
-    type: 'atkinson',
+    type: 'bayer',
     threshold: 128,
     pixelSize: 2,
     invert: false,
@@ -27,7 +27,7 @@ export function randomizeDithererOnly() {
   entry.dither = entry.dither || { enabled: false, params: createDefaultDitherParams() };
   entry.dither.enabled = Math.random() > 0.15;
   const p = entry.dither.params;
-  const types = ['atkinson', 'floydsteinberg', 'bayer', 'bayer8', 'pattern', 'simple', 'none'];
+  const types = ['bayer2', 'bayer3', 'bayer', 'simple'];
   p.type = types[Math.floor(Math.random() * types.length)];
   p.useColor = Math.random() > 0.3;
   p.invert = Math.random() > 0.8;
@@ -67,10 +67,18 @@ export function ensureSourceImageLoaded(entry, cb) {
 }
 
 function normalizeDitherType(type) {
-  if (!type) return 'none';
-  if (type === 'floyd' || type === 'floyd-steinberg') return 'floydsteinberg';
-  if (type === 'bayer-8' || type === 'bayer_8') return 'bayer8';
-  return type;
+  if (!type) return 'bayer';
+
+  // Legacy aliases (we keep accepting them, but we now restrict the final type)
+  if (type === 'floyd' || type === 'floyd-steinberg') type = 'floydsteinberg';
+  if (type === 'bayer-8' || type === 'bayer_8') type = 'bayer8';
+  if (type === '4x1' || type === 'bayer-4x1' || type === 'bayer_4x1') type = 'bayer4x1';
+
+  // Temporarily restrict supported set to these 4.
+  if (type === 'bayer2' || type === 'bayer3' || type === 'bayer' || type === 'simple') return type;
+
+  // Everything else (atkinson/floydsteinberg/pattern/bayer8/bayer4x1/none/unknown...) falls back.
+  return 'bayer';
 }
 
 function clamp255(v) {
@@ -137,16 +145,33 @@ export function applyDitherFilter(pg, type, threshold, useColor) {
     return;
   }
 
-  if (t === 'simple' || t === 'bayer' || t === 'bayer8') {
+  if (t === 'simple' || t === 'bayer2' || t === 'bayer3' || t === 'bayer4x1' || t === 'bayer' || t === 'bayer8') {
+    // 2x2 Bayer matrix (0..3)
+    const bayerMap2 = [
+      [0, 2],
+      [3, 1]
+    ];
+    // 3x3 Bayer matrix (0..8)
+    const bayerMap3 = [
+      [0, 7, 3],
+      [6, 5, 2],
+      [4, 1, 8]
+    ];
+    // 4x4 Bayer matrix (1..16)
     const bayerMap4 = [
       [1, 9, 3, 11],
       [13, 5, 15, 7],
       [4, 12, 2, 10],
       [16, 8, 14, 6]
     ];
-
-    // Standard 8x8 Bayer matrix values in 0..63 range.
-    // Note: we keep the same indexing style as the 4x4 map: map[x%N][y%N].
+    // 4x1 ordered thresholds (0..3). Horizontal stripes.
+    const bayerMap4x1 = [
+      [0],
+      [2],
+      [3],
+      [1]
+    ];
+    // 8x8 Bayer matrix (0..63)
     const bayerMap8 = [
       [0, 48, 12, 60, 3, 51, 15, 63],
       [32, 16, 44, 28, 35, 19, 47, 31],
@@ -167,11 +192,20 @@ export function applyDitherFilter(pg, type, threshold, useColor) {
       const x = (i / 4) % w;
       const y = Math.floor(i / 4 / w);
       let offset = 0;
-      if (t === 'bayer') {
-        // Center around 8.5 to avoid a slight white bias (mean offset ~= 0)
+      if (t === 'bayer2') {
+        // Center around 1.5 for 0..3 matrix
+        offset = (bayerMap2[x % 2][y % 2] - 1.5) * (255 / 4);
+      } else if (t === 'bayer3') {
+        // Center around 4 for 0..8 matrix
+        offset = (bayerMap3[x % 3][y % 3] - 4) * (255 / 9);
+      } else if (t === 'bayer4x1') {
+        // Center around 1.5 for 0..3 map, repeating in X only
+        offset = (bayerMap4x1[x % 4][0] - 1.5) * (255 / 4);
+      } else if (t === 'bayer') {
+        // Center around 8.5 for 1..16 matrix
         offset = (bayerMap4[x % 4][y % 4] - 8.5) * (255 / 16);
       } else if (t === 'bayer8') {
-        // Center around 31.5 for 0..63 matrix (mean offset ~= 0)
+        // Center around 31.5 for 0..63 matrix
         offset = (bayerMap8[x % 8][y % 8] - 31.5) * (255 / 64);
       }
 
@@ -367,9 +401,7 @@ function internalReprocess(entry, cb) {
     temp.pixels[i + 2] = window.constrain(b, 0, 255);
   }
 
-  if (params.type !== 'none') {
-    applyDitherFilter(temp, params.type, params.threshold, params.useColor);
-  }
+  applyDitherFilter(temp, params.type, params.threshold, params.useColor);
 
   if (params.invert) {
     for (let i = 0; i < temp.pixels.length; i += 4) {

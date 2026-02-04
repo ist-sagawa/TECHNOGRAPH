@@ -6,8 +6,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 
-const INPUT_DIR = path.join(PROJECT_ROOT, 'public', 'crystalizer', 'source');
-const OUTPUT_FILE = path.join(PROJECT_ROOT, 'public', 'crystalizer', 'modules', 'sourceFiles.generated.js');
+const INPUT_DIR = path.join(PROJECT_ROOT, 'public', 'crystallizer', 'source');
+const OUTPUT_FILE = path.join(PROJECT_ROOT, 'public', 'crystallizer', 'modules', 'sourceFiles.generated.js');
 
 const IMAGE_EXT_PRIORITY = ['avif', 'webp', 'png', 'jpg', 'jpeg', 'gif'];
 const IMAGE_EXT_SET = new Set(IMAGE_EXT_PRIORITY);

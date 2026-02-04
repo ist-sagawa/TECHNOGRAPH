@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 
-const INPUT_DIR = path.join(PROJECT_ROOT, 'public', 'crystalizer', 'source');
+const INPUT_DIR = path.join(PROJECT_ROOT, 'public', 'crystallizer', 'source');
 const OUTPUT_DIR = path.join(INPUT_DIR, 'thumbs');
 
 const THUMB_SIZE = 96; // thumbnail box size (px)

@@ -23,7 +23,7 @@ export function randomizeDithererOnly() {
   if (!State.sourceImages || State.sourceImages.length === 0) return;
 
   // legacy感: 変化が分かるように none は基本的に避ける
-  const types = ['atkinson', 'floydsteinberg', 'bayer', 'bayer8', 'pattern', 'simple'];
+  const types = ['bayer2', 'bayer3', 'bayer', 'simple'];
 
   // 画面で使っているソース（current / frames / BG）は即反映させる
   const usedNames = new Set();
@@ -117,7 +117,7 @@ export function randomizeDithererUsedOnly() {
   if (entries.length === 0) return;
 
   // legacy感: 変化が分かるように none は基本的に避ける
-  const types = ['atkinson', 'floydsteinberg', 'bayer', 'bayer8', 'pattern', 'simple'];
+  const types = ['bayer2', 'bayer3', 'bayer', 'simple'];
 
   entries.forEach((entry) => {
     entry.dither = entry.dither || { enabled: false, params: createDefaultDitherParams() };
@@ -217,7 +217,7 @@ export function randomizeFrameImagesWithRandomDither() {
 }
 
 // Background-only image pool (8 images in BG_FILES)
-export function randomizeBackgroundImageFromBgPool() {
+export function randomizeBackgroundImageFromBgPool(opts = {}) {
   if (!State.bgImages || State.bgImages.length === 0) return;
   const pick = State.bgImages[Math.floor(random(State.bgImages.length))];
   if (!pick) return;
@@ -226,6 +226,7 @@ export function randomizeBackgroundImageFromBgPool() {
     State.canvasBgImg = pick.originalImg;
     State.canvasBgImgName = pick.name;
     State.needsCompositeUpdate = true;
+    try { opts?.onDone?.(pick); } catch { }
   });
 }
 

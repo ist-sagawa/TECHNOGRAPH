@@ -2,6 +2,8 @@ import { State } from '../state.js';
 import { createLabeledSliderRef } from './controls.js';
 import { ensureSourceImageLoaded, reprocessSourceEntry, createDefaultDitherParams } from '../core/dither.js';
 import { sortPointsClockwise } from '../core/math.js';
+import { renderComposite } from '../core/render.js';
+import { randomizeBackgroundImageFromBgPool } from '../generators/randomizers.js';
 
 // UI Reference Storage for Sync
 const UIr = {
@@ -14,6 +16,15 @@ const UIr = {
   sendNameInput: null,
   sendMessageInput: null
 };
+
+// ARRANGE hue range: keep global hue shifts subtle.
+const TONE_HUE_MIN = -60;
+const TONE_HUE_MAX = 60;
+function clampToneHue(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(TONE_HUE_MIN, Math.min(TONE_HUE_MAX, Math.round(n)));
+}
 
 function getUsedFaceImageNames() {
   const namesWithImage = new Set();
@@ -282,7 +293,7 @@ export function randomizeArrangeSliders() {
 
   // Keep ranges modest so it feels like "ARRANGE moved" rather than a full re-roll.
   const rand = (min, max) => min + Math.random() * (max - min);
-  State.crystalTone.hue = Math.round(rand(-180, 180));
+  State.crystalTone.hue = clampToneHue(rand(TONE_HUE_MIN, TONE_HUE_MAX));
   State.crystalTone.saturation = Number(rand(0.75, 1.85).toFixed(2));
   State.crystalTone.brightness = Number(rand(0.85, 1.80).toFixed(2));
   State.crystalTone.contrast = Number(rand(0.85, 1.85).toFixed(2));
@@ -381,7 +392,8 @@ function applyDitAdjustToUsedFrames() {
     const abs = Math.abs(dit);
     const jThr = (r0 * 2 - 1) * (18 * abs);
     const jPix = (r1 * 2 - 1) * (3 * abs);
-    const jHue = (r2 * 2 - 1) * (16 * abs);
+    // Hue changes read as "color shift" very strongly; keep this jitter modest.
+    const jHue = (r2 * 2 - 1) * (6 * abs);
 
     const next = { ...baseP };
 
@@ -416,7 +428,8 @@ function applyDitAdjustToUsedFrames() {
       const t = dit; // 0..1
       const kThr = 1 + t * (0.95 * sB);
       const kCol = 1 + t * (0.80 * sA);
-      const hueKick = (r2 * 2 - 1) * (18 * t);
+      // Extra kick when strengthening: keep it subtle.
+      const hueKick = (r2 * 2 - 1) * (8 * t);
 
       next.threshold = clampInt(128 + (baseThr - 128) * kThr + jThr, 0, 255);
       next.pixelSize = clampInt(basePx * (1 + t * (1.80 * sA)) + jPix, 1, 24);
@@ -562,8 +575,11 @@ function initToneSliders(parent) {
   State.crystalTone = State.crystalTone || { enabled: true, brightness: 1.0, contrast: 1.0, saturation: 1.0, hue: 0 };
   State.crystalTone.enabled = true;
 
-  UIr.tone.hue = createLabeledSliderRef(parent, 'HUE', -180, 180, State.crystalTone.hue || 0, 1, (v) => {
-    State.crystalTone.hue = Number(v);
+  // Clamp any legacy/stale value before binding UI
+  State.crystalTone.hue = clampToneHue(State.crystalTone.hue ?? 0);
+
+  UIr.tone.hue = createLabeledSliderRef(parent, 'HUE', TONE_HUE_MIN, TONE_HUE_MAX, State.crystalTone.hue || 0, 1, (v) => {
+    State.crystalTone.hue = clampToneHue(v);
     State.needsCompositeUpdate = true;
   });
   UIr.tone.saturation = createLabeledSliderRef(parent, 'SAT', 0.0, 2.0, State.crystalTone.saturation ?? 1.0, 0.01, (v) => {
@@ -621,38 +637,64 @@ async function sendToSanityFromCanvas(meta = {}) {
   const pg = State.layers.composite;
   if (!pg || !pg.canvas) return { ok: false, error: 'No composite canvas' };
 
-  const blob = await new Promise((resolve) => {
-    try {
-      pg.canvas.toBlob((b) => resolve(b), 'image/png');
-    } catch {
-      resolve(null);
+  // If BG is not set, pick a random BG (and wait for the image to load) before exporting.
+  if (!State.canvasBgImg && Array.isArray(State.bgImages) && State.bgImages.length > 0) {
+    await new Promise((resolve) => {
+      randomizeBackgroundImageFromBgPool({ onDone: () => resolve(true) });
+    });
+  }
+
+  const captureCompositePngBlob = async () => {
+    // Ensure composite is up-to-date at the moment of capture.
+    if (State.needsCompositeUpdate) {
+      try { renderComposite(); } catch { }
     }
-  });
 
-  const makeBlobFallback = async () => {
-    try {
-      const dataUrl = pg.canvas.toDataURL('image/png');
-      const r = await fetch(dataUrl);
-      const b = await r.blob();
-      return b && b.size > 0 ? b : null;
-    } catch {
-      return null;
-    }
-  };
+    const blob = await new Promise((resolve) => {
+      try {
+        pg.canvas.toBlob((b) => resolve(b), 'image/png');
+      } catch {
+        resolve(null);
+      }
+    });
 
-  const finalBlob = (blob && blob.size > 0) ? blob : await makeBlobFallback();
+    const makeBlobFallback = async () => {
+      try {
+        const dataUrl = pg.canvas.toDataURL('image/png');
+        const r = await fetch(dataUrl);
+        const b = await r.blob();
+        return b && b.size > 0 ? b : null;
+      } catch {
+        return null;
+      }
+    };
 
-  if (!finalBlob) return { ok: false, error: 'Failed to create PNG blob' };
+    const finalBlob = (blob && blob.size > 0) ? blob : await makeBlobFallback();
+    if (!finalBlob) return null;
 
-  // Normalize to an explicit PNG blob (some runtimes may produce a Blob with empty/odd type)
-  const pngBlob = await (async () => {
+    // Normalize to an explicit PNG blob (some runtimes may produce a Blob with empty/odd type)
     try {
       const ab = await finalBlob.arrayBuffer();
       return new Blob([ab], { type: 'image/png' });
     } catch {
       return finalBlob;
     }
-  })();
+  };
+
+  // 1) Normal export (BG as current state)
+  const pngBlob = await captureCompositePngBlob();
+  if (!pngBlob) return { ok: false, error: 'Failed to create PNG blob' };
+
+  // 2) Transparent export (force transparentBg=true temporarily)
+  const prevTransparentBg = !!State.transparentBg;
+  State.transparentBg = true;
+  State.needsCompositeUpdate = true;
+  const pngTransparentBlob = await captureCompositePngBlob();
+  State.transparentBg = prevTransparentBg;
+  State.needsCompositeUpdate = true;
+  try { renderComposite(); } catch { }
+
+  if (!pngTransparentBlob) return { ok: false, error: 'Failed to create transparent PNG blob' };
 
   // Lightweight diagnostics (helps debug "Invalid image" from Sanity)
   try {
@@ -660,17 +702,25 @@ async function sendToSanityFromCanvas(meta = {}) {
     const hex = Array.from(head).map((b) => b.toString(16).padStart(2, '0')).join(' ');
     console.log('[SEND] blob', { size: pngBlob.size, type: pngBlob.type, headHex: hex });
   } catch { }
+  try {
+    const head = new Uint8Array(await pngTransparentBlob.slice(0, 16).arrayBuffer());
+    const hex = Array.from(head).map((b) => b.toString(16).padStart(2, '0')).join(' ');
+    console.log('[SEND] transparent blob', { size: pngTransparentBlob.size, type: pngTransparentBlob.type, headHex: hex });
+  } catch { }
 
-  const filename = `crystalizer_${Date.now()}.png`;
+  const ts = Date.now();
+  const filename = `crystallizer_${ts}.png`;
+  const filenameTransparent = `crystallizer_${ts}_transparent.png`;
   const fd = new FormData();
   fd.append('file', pngBlob, filename);
+  fd.append('fileTransparent', pngTransparentBlob, filenameTransparent);
   fd.append('title', filename.replace(/\.png$/i, ''));
   if (meta?.date) fd.append('date', String(meta.date));
   if (meta?.externalId) fd.append('id', String(meta.externalId));
   if (meta?.name) fd.append('name', String(meta.name));
   if (meta?.message) fd.append('message', String(meta.message));
 
-  const res = await fetch('/api/crystalizer/upload', {
+  const res = await fetch('/api/crystallizer/upload', {
     method: 'POST',
     body: fd
   });
@@ -898,6 +948,7 @@ function refreshThumbnails() {
 export function updatePanelUI() {
   const t = State.crystalTone;
   if (t) {
+    t.hue = clampToneHue(t.hue ?? 0);
     if (UIr.tone.hue) UIr.tone.hue.setValueSilently(t.hue);
     if (UIr.tone.saturation) UIr.tone.saturation.setValueSilently(t.saturation);
     if (UIr.tone.brightness) UIr.tone.brightness.setValueSilently(t.brightness);

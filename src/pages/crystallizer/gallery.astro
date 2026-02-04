@@ -2,7 +2,15 @@
 import Page from "@/layouts/Page.astro";
 import { getCrystalizerImages, imageUrlFor, type CrystalizerImage } from "@/lib/Sanity";
 
-const images: CrystalizerImage[] = await getCrystalizerImages({ limit: 240 });
+let images: CrystalizerImage[] = [];
+try {
+  images = await getCrystalizerImages({ limit: 240 });
+} catch (err) {
+  // Build should not fail if Sanity is temporarily unreachable (or local TLS is broken).
+  // The list is replaced by runtime fetch below.
+  console.warn('[crystallizer/gallery] getCrystalizerImages failed; falling back to runtime fetch only.', err);
+  images = [];
+}
 
 const fmtDate = (iso?: string) => {
   if (!iso) return "";
@@ -17,12 +25,12 @@ const fmtDate = (iso?: string) => {
 };
 ---
 
-<Page title="Crystalizer Gallery" showSplash={false} showLogo={false}>
+<Page title="Crystallizer Gallery" showSplash={false} showLogo={false}>
   <main slot="content" class="wrap">
     <header class="head">
-      <h2>Crystalizer Gallery</h2>
+      <h2>Crystallizer Gallery</h2>
       <div class="meta">
-        <a href="/crystalizer/">← Crystalizer</a>
+        <a href="/crystallizer/">← Crystallizer</a>
         <span class="count">{images.length} items</span>
       </div>
     </header>
@@ -71,7 +79,7 @@ const fmtDate = (iso?: string) => {
   async function refreshFromApi() {
     if (!grid) return;
     try {
-      const res = await fetch(`/api/crystalizer/gallery?limit=240&t=${Date.now()}`, {
+      const res = await fetch(`/api/crystallizer/gallery?limit=240&t=${Date.now()}`, {
         cache: 'no-store',
         credentials: 'same-origin',
       });
