@@ -7,6 +7,19 @@ export function random(min, max) {
   return Math.random() * (max - min) + min;
 }
 
+// 文字列から 0..1 の安定した疑似乱数を作る（FNV-1a 風）
+// 乱数ではなく「名前に紐づいた揺れ」を作りたい用途向け。
+export function hash01(str) {
+  const s = String(str || '');
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  h >>>= 0;
+  return (h % 100000) / 100000;
+}
+
 export function pointInPolygon(px, py, pts) {
   let inside = false;
   for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {

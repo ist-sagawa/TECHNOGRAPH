@@ -1,33 +1,14 @@
 import { State } from '../state.js';
 import { ensureSourceImageLoaded } from '../core/dither.js';
 import { pointInPolygon, sortPointsClockwise, getPointsBounds } from '../core/math.js';
+import { findNearbyPointInFaces, findTopmostFaceAt } from '../core/picking.js';
+import { scaleForPointer } from '../core/pointer.js';
 
 // --- FrameTool 内部ヘルパー ---
 
-function findNearbyPoint(mx, my, tolerance = 14) {
-  let closest = null;
-  let minDistSq = tolerance * tolerance;
-
-  State.faces.forEach((f) => {
-    f.points.forEach((p, idx) => {
-      const d2 = (p.x - mx) * (p.x - mx) + (p.y - my) * (p.y - my);
-      if (d2 < minDistSq) {
-        minDistSq = d2;
-        closest = { face: f, index: idx };
-      }
-    });
-  });
-  return closest;
-}
-
-function findTopmostFaceAt(mx, my) {
-  // 描画順の逆（上にあるものから）チェック
-  for (let i = State.faces.length - 1; i >= 0; i--) {
-    if (pointInPolygon(mx, my, State.faces[i].points)) {
-      return State.faces[i];
-    }
-  }
-  return null;
+function getPointHitRadius(base) {
+  // 頂点はスマホだと狙いづらいので、当たり判定を大きめにする
+  return scaleForPointer(base, { coarseMult: 2.0 });
 }
 
 // --- Free Transform (Photoshop風) ---
@@ -242,6 +223,11 @@ function hitHandle(pt, mx, my, r = 14) {
   return (dx * dx + dy * dy) <= r * r;
 }
 
+function getHandleHitRadius(base) {
+  // タッチ端末は狙いづらいので、当たり判定を大きくする
+  return scaleForPointer(base, { coarseMult: 1.8 });
+}
+
 export function handleTransformPress() {
   if (!State.frameFreeTransform) return false;
   if (State.isPlacing) return false;
@@ -262,7 +248,11 @@ export function handleTransformPress() {
     if (!s) return false;
     const h = computeTransformHandles(s);
 
-    if (hitHandle(h.rotate, mx, my, 16)) {
+    const rRot = getHandleHitRadius(16);
+    const rCorner = getHandleHitRadius(14);
+    const rEdge = getHandleHitRadius(12);
+
+    if (hitHandle(h.rotate, mx, my, rRot)) {
       const c = getTransformCenter(s);
       s.dragging = {
         type: 'rotate',
@@ -275,7 +265,7 @@ export function handleTransformPress() {
     // corners
     const cornerNames = ['tl', 'tr', 'br', 'bl'];
     for (let i = 0; i < h.corners.length; i++) {
-      if (hitHandle(h.corners[i], mx, my, 14)) {
+      if (hitHandle(h.corners[i], mx, my, rCorner)) {
         s.dragging = { type: 'scale', kind: 'corner', which: cornerNames[i] };
         return true;
       }
@@ -284,7 +274,7 @@ export function handleTransformPress() {
     // edges: top, right, bottom, left
     const edgeNames = ['top', 'right', 'bottom', 'left'];
     for (let i = 0; i < h.edges.length; i++) {
-      if (hitHandle(h.edges[i], mx, my, 12)) {
+      if (hitHandle(h.edges[i], mx, my, rEdge)) {
         s.dragging = { type: 'scale', kind: 'edge', which: edgeNames[i] };
         return true;
       }
@@ -412,7 +402,8 @@ export function handleTransformRelease() {
 export function handlePointPress() {
   if (State.toolTab !== 'FRAME') return false;
 
-  const hit = findNearbyPoint(window.mouseX, window.mouseY, 14);
+  const tol = getPointHitRadius(14);
+  const hit = findNearbyPointInFaces(State.faces, window.mouseX, window.mouseY, tol);
   if (hit) {
     State.draggingPoint = hit;
     State.draggingMoved = false;
@@ -460,7 +451,7 @@ export function handlePointDrag() {
 export function handleFramePress() {
   // 画像配置モード
   if (State.isImagePlacing) {
-    const target = findTopmostFaceAt(window.mouseX, window.mouseY);
+    const target = findTopmostFaceAt(window.mouseX, window.mouseY, State.faces, State.activeFace);
     if (!target) return true;
 
     const applyNow = (img, name) => {
@@ -509,7 +500,7 @@ export function handleFramePress() {
 
   // フレームドラッグモード
   if (State.toolTab === 'FRAME' && !State.isPlacing) {
-    const target = findTopmostFaceAt(window.mouseX, window.mouseY);
+    const target = findTopmostFaceAt(window.mouseX, window.mouseY, State.faces, State.activeFace);
     if (target) {
       // SHIFT押下時は全フレームを移動対象に
       const facesToMove = window.keyIsDown(window.SHIFT || 16) ? State.faces : [target];

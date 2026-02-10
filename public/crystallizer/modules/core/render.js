@@ -1,5 +1,6 @@
 import { State } from '../state.js';
-import { pointInPolygon, getPointsBounds } from './math.js';
+import { getPointsBounds } from './math.js';
+import { findNearbyPointInFaces, findTopmostFaceAt } from './picking.js';
 
 export function drawCheckerboard(size) {
   window.noStroke();
@@ -127,53 +128,14 @@ function drawFaceToPg(pg, face) {
   pg.pop();
 }
 
-function getBounds(pts) {
-  let minX = pts[0].x, minY = pts[0].y, maxX = pts[0].x, maxY = pts[0].y;
-  for (let i = 1; i < pts.length; i++) {
-    minX = Math.min(minX, pts[i].x);
-    minY = Math.min(minY, pts[i].y);
-    maxX = Math.max(maxX, pts[i].x);
-    maxY = Math.max(maxY, pts[i].y);
-  }
-  return { minX, minY, maxX, maxY };
-}
-
-function findNearbyPoint(mx, my, tolerance = 14) {
-  let closest = null;
-  let minDistSq = tolerance * tolerance;
-
-  const allFaces = [];
-  if (State.activeFace && State.activeFace.points && State.activeFace.points.length) allFaces.push(State.activeFace);
-  if (State.faces && State.faces.length) allFaces.push(...State.faces);
-
-  allFaces.forEach((f) => {
-    (f.points || []).forEach((p, idx) => {
-      const d2 = (p.x - mx) * (p.x - mx) + (p.y - my) * (p.y - my);
-      if (d2 < minDistSq) {
-        minDistSq = d2;
-        closest = { face: f, index: idx };
-      }
-    });
-  });
-  return closest;
-}
-
-function findTopmostFaceAt(mx, my) {
-  if (State.activeFace && State.activeFace.points && State.activeFace.points.length >= 3) {
-    if (pointInPolygon(mx, my, State.activeFace.points)) return State.activeFace;
-  }
-  for (let i = State.faces.length - 1; i >= 0; i--) {
-    const f = State.faces[i];
-    if (f.points && f.points.length >= 3 && pointInPolygon(mx, my, f.points)) return f;
-  }
-  return null;
-}
-
 export function updateHoverState() {
   State.hoverPoint = null;
   if (State.showFrames && !State.overUI) {
     if (window.mouseX >= 0 && window.mouseX <= window.width && window.mouseY >= 0 && window.mouseY <= window.height) {
-      State.hoverPoint = findNearbyPoint(window.mouseX, window.mouseY, 14);
+      const allFaces = [];
+      if (State.activeFace && State.activeFace.points && State.activeFace.points.length) allFaces.push(State.activeFace);
+      if (State.faces && State.faces.length) allFaces.push(...State.faces);
+      State.hoverPoint = findNearbyPointInFaces(allFaces, window.mouseX, window.mouseY, 14);
     }
   }
 
@@ -181,7 +143,7 @@ export function updateHoverState() {
   // 画像配置中だけでなく、通常時も「ホバーしているフレーム」を拾う
   if (!State.overUI) {
     if (window.mouseX >= 0 && window.mouseX <= window.width && window.mouseY >= 0 && window.mouseY <= window.height) {
-      State.hoverFace = findTopmostFaceAt(window.mouseX, window.mouseY);
+      State.hoverFace = findTopmostFaceAt(window.mouseX, window.mouseY, State.faces, State.activeFace);
     }
   }
 }

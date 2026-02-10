@@ -1,7 +1,7 @@
 import { State } from '../state.js';
 import { createLabeledSliderRef } from './controls.js';
 import { ensureSourceImageLoaded, reprocessSourceEntry, createDefaultDitherParams } from '../core/dither.js';
-import { sortPointsClockwise } from '../core/math.js';
+import { sortPointsClockwise, hash01 } from '../core/math.js';
 import { renderComposite } from '../core/render.js';
 import { randomizeBackgroundImageFromBgPool } from '../generators/randomizers.js';
 
@@ -112,7 +112,7 @@ export function initControlsPanel(container) {
 
   // --- ARRANGE SECTION ---
   createSection(container, 'ARRANGE');
-  const arrContent = window.createDiv('').addClass('operation-content').parent(container);
+  const arrContent = window.createDiv('').addClass('operation-content arrange').parent(container);
   const arrRow = window.createDiv('').addClass('arrange-row').parent(arrContent);
 
   const slidersCol = window.createDiv('').addClass('sliders-col').parent(arrRow);
@@ -311,22 +311,11 @@ function ensureDitherBase(entry) {
   entry.dither = entry.dither || { enabled: false, params: createDefaultDitherParams() };
   entry.dither.params = entry.dither.params || createDefaultDitherParams();
   if (!entry.dither.baseParams) {
-    // Deep-ish copy of simple params object
+    // 単純な params オブジェクトを「ベースライン」として保持（浅いコピーで十分）
     entry.dither.baseParams = { ...createDefaultDitherParams(), ...entry.dither.params };
     entry.dither.baseEnabled = !!entry.dither.enabled;
   }
   return entry.dither.baseParams;
-}
-
-function hash01(str) {
-  const s = String(str || '');
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  h >>>= 0;
-  return (h % 100000) / 100000;
 }
 
 function applyDitAdjustToUsedFrames() {
@@ -345,15 +334,15 @@ function applyDitAdjustToUsedFrames() {
 
   const clampInt = (v, min, max) => Math.max(min, Math.min(max, Math.round(v)));
   const clampFloat = (v, min, max) => Math.max(min, Math.min(max, Number(v)));
-  const lerp = (a, b, t) => a + (b - a) * t;
 
   const refreshUI = () => {
     if (window.updateImageGrid) window.updateImageGrid();
     if (window.updatePanelUI) window.updatePanelUI();
   };
 
-  // Center = keep current state, but also treat current as the new baseline.
-  // (No need to reprocess when nothing changes.)
+  // 中央（DIT=0）は「現状をベースラインとして更新」する。
+  // ここで基準値を更新しておくと、左右に振った時の変化が「現在の状態からの相対」になる。
+  //（何も変わらない時は再処理しない）
   if (Math.abs(dit) < 1e-6) {
     entries.forEach((entry) => {
       if (!entry) return;
@@ -361,11 +350,20 @@ function applyDitAdjustToUsedFrames() {
       entry.dither.params = entry.dither.params || createDefaultDitherParams();
       entry.dither.baseParams = { ...baseDefaults, ...entry.dither.params };
       entry.dither.baseEnabled = !!entry.dither.enabled;
+      // 左端で強制OFFしていた履歴があれば、ベースライン更新時に解除状態として扱う
+      if (entry.dither.offByDit) {
+        entry.dither.offByDit = false;
+        delete entry.dither.prevEnabledBeforeDitOff;
+      }
     });
     State.needsCompositeUpdate = true;
     refreshUI();
     return;
   }
+
+  // 左端（DIT=-1付近）は「使用中フレームのディザーを強制OFF」にする。
+  // その際、元の enabled 状態を保持して、左端から戻した時に復元できるようにする。
+  const forceOff = dit <= -0.999;
 
   let i = 0;
   const step = () => {
@@ -382,22 +380,65 @@ function applyDitAdjustToUsedFrames() {
     }
 
     const baseP = { ...baseDefaults, ...ensureDitherBase(entry) };
-    // DIT should not toggle the effect on/off; preserve the current enabled state.
+    // 左端では強制OFF
+    if (forceOff) {
+      if (!entry.dither.offByDit) {
+        entry.dither.offByDit = true;
+        entry.dither.prevEnabledBeforeDitOff = !!entry.dither.enabled;
+      }
+      entry.dither.enabled = false;
+      // OFF中は params をベースラインで固定（スライダー操作の副作用で値がズレないように）
+      entry.dither.params = { ...baseP };
+
+      ensureSourceImageLoaded(entry, () => {
+        reprocessSourceEntry(entry, () => {
+          if (entry.name === State.currentSourceName) {
+            State.currentSourceImg = entry.processedImg || entry.originalImg;
+            State.currentSourcePath = entry.displayUrl || entry.path;
+          }
+
+          (State.faces || []).forEach((face) => {
+            if (!face) return;
+            if (face.imageName === entry.name) {
+              face.image = entry.processedImg || entry.originalImg;
+            }
+          });
+
+          State.needsCompositeUpdate = true;
+          if (i % 2 === 0) refreshUI();
+          window.setTimeout(step, 0);
+        });
+      });
+      return;
+    }
+
+    // 以前に左端で強制OFFしていた場合、左端から離れたタイミングで enabled を復元する
+    if (entry.dither.offByDit) {
+      entry.dither.offByDit = false;
+      const restore =
+        entry.dither.prevEnabledBeforeDitOff ??
+        entry.dither.baseEnabled ??
+        true;
+      entry.dither.enabled = !!restore;
+      delete entry.dither.prevEnabledBeforeDitOff;
+    }
+
+    // DIT は「強度/粒度の調整」が主目的で、ON/OFF を勝手に切り替えない（左端強制OFFを除く）
     const curEnabled = !!entry.dither.enabled;
 
-    // Stable per-entry variation so they don't converge
+    // エントリごとに安定した揺らぎを入れて、全体が同じ見た目に収束しないようにする
     const r0 = hash01(entry.name);
     const r1 = hash01(entry.name + '|b');
     const r2 = hash01(entry.name + '|c');
     const abs = Math.abs(dit);
     const jThr = (r0 * 2 - 1) * (18 * abs);
     const jPix = (r1 * 2 - 1) * (3 * abs);
-    // Hue changes read as "color shift" very strongly; keep this jitter modest.
+    // Hue は色ズレとして強く見えるので、揺らぎは控えめにする
     const jHue = (r2 * 2 - 1) * (6 * abs);
 
     const next = { ...baseP };
 
-    // Per-entry scaling so they don't converge when sweeping DIT
+    // DIT をスイープした時に収束しないよう、係数もエントリごとに少し変える
     const sA = 0.85 + r0 * 0.3; // 0.85..1.15
     const sB = 0.85 + r1 * 0.3;
     const baseThr = Number(baseP.threshold ?? 128);
@@ -408,7 +449,7 @@ function applyDitAdjustToUsedFrames() {
     const baseHue = Number(baseP.hue ?? 0);
 
     if (dit < 0) {
-      // Weaken relative to baseline WITHOUT pulling everything towards a shared "neutral".
+      // ベースラインから相対的に弱める（共通のニュートラル値へ無理に寄せない）
       const t = -dit; // 0..1
       const wThr = 1 - t * (0.70 * sB);
       const wCol = 1 - t * (0.55 * sA);
@@ -565,7 +606,7 @@ window.syncAlphaButton = syncAlphaButton;
 // --- Helpers ---
 
 function createSection(parent, text) {
-  const h = window.createDiv('').addClass('section-header').parent(parent);
+  const h = window.createDiv('').addClass('section-header '+String(text).toLowerCase()).parent(parent);
   window.createDiv(text).addClass('section-label').parent(h);
   h.style('height', '40px');
 }
@@ -751,9 +792,32 @@ window.sendToSanityFromCanvas = sendToSanityFromCanvas;
 function setupDropZone(dropZone) {
   const fileInput = window.createFileInput((file) => handleFileSelect(file), true);
   fileInput.parent(dropZone.parent()); // Attach somewhere invisible
-  fileInput.hide();
 
-  dropZone.mousePressed(() => fileInput.elt.click());
+  // iOS Safari can block programmatic .click() on <input type="file"> if it's display:none.
+  // Keep it visually hidden but present.
+  try {
+    fileInput.style('position', 'fixed');
+    fileInput.style('left', '-9999px');
+    fileInput.style('top', '0');
+    fileInput.style('width', '1px');
+    fileInput.style('height', '1px');
+    fileInput.style('opacity', '0');
+    fileInput.style('pointer-events', 'none');
+  } catch { }
+
+  const openPicker = (e) => {
+    try { e?.preventDefault?.(); } catch { }
+    try { e?.stopPropagation?.(); } catch { }
+    // Must be directly in a user gesture.
+    try { fileInput.elt.click(); } catch { }
+  };
+
+  // p5's mousePressed can be flaky on some mobile browsers; use DOM events too.
+  dropZone.mousePressed(() => openPicker());
+  try {
+    dropZone.elt.addEventListener('pointerdown', openPicker, { passive: false });
+    dropZone.elt.addEventListener('click', openPicker, { passive: false });
+  } catch { }
 
   const el = dropZone.elt;
   el.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style('background', '#b0b0b0'); });
@@ -767,9 +831,46 @@ function setupDropZone(dropZone) {
 }
 
 function handleFileSelect(p5File) {
-  if (!p5File || !p5File.file) return;
-  if (!p5File.type || !String(p5File.type).startsWith('image/')) return;
-  addLocalSource(p5File.file);
+  if (!p5File) return;
+
+  const looksLikeImageName = (name) => {
+    const n = String(name || '').toLowerCase();
+    return /\.(png|jpe?g|gif|webp|avif|heic|heif)$/i.test(n);
+  };
+
+  const isImageLike = () => {
+    const t = String(p5File.type || '').toLowerCase();
+    // p5.File sometimes provides type="image" + subtype="jpeg" (not a full mime).
+    if (t === 'image') return true;
+    if (t.startsWith('image/')) return true;
+    // Some mobile browsers may not provide a reliable mime type.
+    if (!t && looksLikeImageName(p5File.name)) return true;
+    return false;
+  };
+
+  if (!isImageLike()) return;
+
+  // Prefer the original File object when available.
+  if (p5File.file) {
+    addLocalSource(p5File.file);
+    return;
+  }
+
+  // Fallback: some runtimes only provide data URL.
+  const data = String(p5File.data || '');
+  if (data.startsWith('data:image/')) {
+    try {
+      const [meta, b64] = data.split(',');
+      const mime = (meta.match(/data:([^;]+)/)?.[1]) || 'image/png';
+      const bin = atob(b64 || '');
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const blob = new Blob([bytes], { type: mime });
+      const name = p5File.name || `local_${Date.now()}`;
+      const file = new File([blob], name, { type: mime });
+      addLocalSource(file);
+    } catch { }
+  }
 }
 
 function handleRawFile(file) {

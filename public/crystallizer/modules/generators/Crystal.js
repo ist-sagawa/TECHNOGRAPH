@@ -1,21 +1,23 @@
 import { State } from '../state.js';
-import { random } from '../core/math.js';
-import { sortPointsClockwise, pointInPolygon, polygonSignedArea } from '../core/math.js';
+import { random, sortPointsClockwise, polygonSignedArea, getPointsBounds } from '../core/math.js';
 import { randomizeBackgroundImageFromBgPool } from './randomizers.js';
 
 function getBounds(points) {
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  for (const p of points || []) {
-    if (!p) continue;
-    minX = Math.min(minX, p.x);
-    minY = Math.min(minY, p.y);
-    maxX = Math.max(maxX, p.x);
-    maxY = Math.max(maxY, p.y);
+  const pts = (points || []).filter(Boolean);
+  if (pts.length === 0) {
+    const minX = Infinity;
+    const minY = Infinity;
+    const maxX = -Infinity;
+    const maxY = -Infinity;
+    return { minX, minY, maxX, maxY, w: 1e-6, h: 1e-6 };
   }
-  return { minX, minY, maxX, maxY, w: Math.max(1e-6, maxX - minX), h: Math.max(1e-6, maxY - minY) };
+
+  const b = getPointsBounds(pts);
+  return {
+    ...b,
+    w: Math.max(1e-6, b.maxX - b.minX),
+    h: Math.max(1e-6, b.maxY - b.minY)
+  };
 }
 
 function fitPointsIntoCanvas(points, canvasW, canvasH, margin) {
@@ -83,7 +85,6 @@ function splitPolygonByLine(poly, sx, sy, nx, ny) {
   }
 
   // 縮退したポリゴン等をフィルタリング
-  const res = [];
   // 点が3つ以上必要
 
   const final = [];

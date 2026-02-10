@@ -32,7 +32,7 @@ export function randomizeDithererOnly() {
   p.useColor = Math.random() > 0.3;
   p.invert = Math.random() > 0.8;
   p.threshold = Math.floor(random(80, 180));
-  p.pixelSize = Math.floor(random(2, 6));
+  p.pixelSize = Math.floor(random(2, 12));
   p.fgColor = Math.random() > 0.5 ? '#000000' : '#333333';
 }
 
@@ -45,8 +45,45 @@ export function ensureSourceImageLoaded(entry, cb) {
 
   if (window.incrementTask) window.incrementTask();
 
-  // p5.js の loadImage を window 経由で使用
-  window.loadImage(entry.path, (img) => {
+  const buildFallbackPaths = (p) => {
+    const pathStr = String(p || '');
+    if (!pathStr || pathStr.startsWith('blob:')) return [pathStr].filter(Boolean);
+
+    const m = /^(.*?)(\.[^.\/?#]+)([?#].*)?$/.exec(pathStr);
+    if (!m) return [pathStr];
+    const stem = m[1];
+    const ext = (m[2] || '').toLowerCase();
+    const suffix = m[3] || '';
+
+    const list = [pathStr];
+    // If the preferred format can't be decoded (e.g. AVIF not supported), try common fallbacks.
+    if (ext === '.avif') {
+      list.push(`${stem}.webp${suffix}`);
+      list.push(`${stem}.png${suffix}`);
+      list.push(`${stem}.jpg${suffix}`);
+      list.push(`${stem}.jpeg${suffix}`);
+    } else if (ext === '.webp') {
+      list.push(`${stem}.png${suffix}`);
+      list.push(`${stem}.jpg${suffix}`);
+      list.push(`${stem}.jpeg${suffix}`);
+    }
+
+    // de-dupe while preserving order
+    return Array.from(new Set(list.filter(Boolean)));
+  };
+
+  const candidates = buildFallbackPaths(entry.path);
+
+  const tryLoadAt = (idx) => {
+    const p = candidates[idx];
+    if (!p) {
+      if (window.decrementTask) window.decrementTask();
+      if (cb) cb();
+      return;
+    }
+
+    // p5.js の loadImage を window 経由で使用
+    window.loadImage(p, (img) => {
     // 画像が大きすぎる場合はリサイズ
     if (img.width > MAX_DIM || img.height > MAX_DIM) {
       if (img.width > img.height) {
@@ -55,15 +92,27 @@ export function ensureSourceImageLoaded(entry, cb) {
         img.resize(0, MAX_DIM);
       }
     }
+    // Remember the actually-loaded path (useful when falling back from AVIF)
+    entry.path = p;
     entry.originalImg = img;
     // 必要であればここで初期サムネイルや表示用画像を生成する処理を追加（遅延生成でも可）
     if (window.decrementTask) window.decrementTask();
     if (cb) cb();
-  }, (err) => {
-    console.error('[ensureSourceImageLoaded] loadImage failed:', entry.path, err);
-    if (window.decrementTask) window.decrementTask();
-    if (cb) cb();
-  });
+    }, (err) => {
+      // Try the next candidate if available.
+      if (idx + 1 < candidates.length) {
+        console.warn('[ensureSourceImageLoaded] loadImage failed, retrying:', p, err);
+        tryLoadAt(idx + 1);
+        return;
+      }
+
+      console.error('[ensureSourceImageLoaded] loadImage failed:', p, err);
+      if (window.decrementTask) window.decrementTask();
+      if (cb) cb();
+    });
+  };
+
+  tryLoadAt(0);
 }
 
 function normalizeDitherType(type) {

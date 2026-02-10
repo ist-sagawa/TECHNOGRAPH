@@ -6,6 +6,7 @@ import { randomizeCrystalize } from './modules/generators/Crystal.js';
 import { renderComposite, drawFrameGuides, drawCheckerboard, updateHoverState, drawPlacingPreview, drawPlacingCursorPreview } from './modules/core/render.js';
 import { randomizeAll, randomizeFramerOnly, randomizeDithererOnly, randomizeDithererUsedOnly, randomizeBackgroundImageFromBgPool, randomizeFrameImagesWithRandomDither } from './modules/generators/randomizers.js';
 import { ensureSourceImageLoaded, createDefaultDitherParams } from './modules/core/dither.js';
+import { hash01 } from './modules/core/math.js';
 import { updatePanelUI, updateImageGrid, randomizeArrangeSliders, syncDitBaselineForUsedFrames, resetDitToCenterSilently } from './modules/ui/panels.js';
 import { clearCanvas } from './modules/core/canvas.js';
 
@@ -37,18 +38,11 @@ function getRandomSourceSample(allFiles, n) {
 }
 
 function initSourceImagesFromFiles(files) {
-  const hash01 = (str) => {
-    const s = String(str || '');
-    let h = 2166136261;
-    for (let i = 0; i < s.length; i++) {
-      h ^= s.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    h >>>= 0;
-    return (h % 100000) / 100000;
-  };
+  const prevEntries = Array.isArray(State.sourceImages) ? State.sourceImages : [];
+  const localEntries = prevEntries.filter((e) => e && e.isLocal);
+  const prevCurrentName = State.currentSourceName;
 
-  State.sourceImages = (files || []).map((filename) => {
+  const sampledEntries = (files || []).map((filename) => {
     const stem = String(filename || '').replace(/\.[^.]+$/, '');
     const params = createDefaultDitherParams();
     // Crystalizeでプールを入れ替えても“見え方”が急に変わりすぎないように、
@@ -73,18 +67,29 @@ function initSourceImagesFromFiles(files) {
     };
   });
 
+  // Keep user-dropped local images in the source list even when we resample the pool.
+  // (These are stored as blob: URLs and should remain until explicitly removed/cleared.)
+  State.sourceImages = [...localEntries, ...sampledEntries];
+
   // Reset selection/placing to avoid dangling references to removed entries
-  State.currentSourceImg = null;
-  State.currentSourceName = '';
-  State.currentSourcePath = '';
+  const keepLocalCurrent = !!(prevCurrentName && localEntries.some((e) => e?.name === prevCurrentName));
+  if (!keepLocalCurrent) {
+    State.currentSourceImg = null;
+    State.currentSourceName = '';
+    State.currentSourcePath = '';
+  }
   State.isImagePlacing = false;
   State.placingImgName = null;
   State.placingImg = null;
 
-  if (State.sourceImages.length > 0) {
-    const pick = State.sourceImages[Math.floor(Math.random() * State.sourceImages.length)];
-    State.currentSourceName = pick.name;
-    State.currentSourcePath = pick.path;
+  if (!keepLocalCurrent) {
+    // Prefer picking from the sampled pool so resampling actually changes the feel.
+    const pool = sampledEntries.length > 0 ? sampledEntries : State.sourceImages;
+    if (pool.length > 0) {
+      const pick = pool[Math.floor(Math.random() * pool.length)];
+      State.currentSourceName = pick.name;
+      State.currentSourcePath = pick.path;
+    }
   }
 }
 

@@ -129,7 +129,7 @@ export function randomizeDithererUsedOnly() {
     p.useColor = Math.random() > 0.3;
     p.invert = Math.random() > 0.8;
     p.threshold = Math.floor(random(50, 210));
-    p.pixelSize = Math.floor(random(1, 10));
+    p.pixelSize = Math.floor(random(1, 14));
     p.brightness = random(0.8, 1.2);
     p.contrast = random(0.8, 1.2);
     p.saturation = random(0.8, 1.2);

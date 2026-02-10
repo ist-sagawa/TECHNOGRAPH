@@ -32,6 +32,9 @@ const fmtDate = (iso?: string) => {
       <div class="meta">
         <a href="/crystallizer/">← Crystallizer</a>
         <span class="count">{images.length} items</span>
+        <button class="fs-btn" type="button" aria-haspopup="dialog" aria-controls="fs" title="Fullscreen (F)">
+          Full
+        </button>
       </div>
     </header>
 
@@ -57,6 +60,25 @@ const fmtDate = (iso?: string) => {
         );
       })}
     </section>
+
+    <section id="fs" class="fs" hidden aria-hidden="true" role="dialog" aria-label="Fullscreen gallery">
+      <div class="fs-ui">
+        <button class="fs-close" type="button" title="Close (Esc)">Close</button>
+        <div class="fs-hint">F: fullscreen / Esc: close / Space: pause</div>
+        <div class="fs-meta">
+          <span class="fs-count"></span>
+          <span class="fs-speed"></span>
+        </div>
+      </div>
+      <div class="fs-info" aria-live="polite">
+        <div class="fs-info-date"></div>
+        <div class="fs-info-msg"></div>
+        <div class="fs-info-name"></div>
+      </div>
+      <div class="fs-stage" aria-hidden="true">
+        <div class="fs-track" id="fs-track"></div>
+      </div>
+    </section>
   </main>
 </Page>
 
@@ -64,6 +86,19 @@ const fmtDate = (iso?: string) => {
   // NOTE: 本番は静的ビルド(SSG)でHTMLが固定されるため、最新の一覧をruntime fetchで差し替える。
   const grid = document.querySelector('.grid');
   const countEl = document.querySelector('.count');
+
+  const fsEl = document.getElementById('fs');
+  const fsBtn = document.querySelector('.fs-btn');
+  const fsCloseBtn = document.querySelector('.fs-close');
+  const fsTrackEl = document.getElementById('fs-track');
+  const fsCountEl = document.querySelector('.fs-count');
+  const fsSpeedEl = document.querySelector('.fs-speed');
+  const fsInfoEl = document.querySelector('.fs-info');
+  const fsInfoDateEl = document.querySelector('.fs-info-date');
+  const fsInfoNameEl = document.querySelector('.fs-info-name');
+  const fsInfoMsgEl = document.querySelector('.fs-info-msg');
+
+  const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const fmtDate = (iso) => {
     if (!iso) return '';
@@ -75,6 +110,329 @@ const fmtDate = (iso?: string) => {
     const dd = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${dd}`;
   };
+
+  // -----------------
+  // Fullscreen filmstrip
+  //  - GridのDOMから画像URLを拾って横に流す
+  //  - API差し替え後でも動く
+  // -----------------
+  let fsOpen = false;
+  let fsPaused = false;
+  let fsSpeed = prefersReducedMotion ? 0 : 70; // px/sec
+  let fsOffset = 0;
+  let fsLastTs = 0;
+  let fsCycleWidth = 0;
+  let rafId = 0;
+  let fsItemsLen = 0;
+  let fsItemEls = [];
+  let fsFocusLastTs = 0;
+
+  const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+
+  function readItemsFromGridDom() {
+    const links = document.querySelectorAll('.grid a.img');
+    const items = [];
+    let i = 0;
+    for (const a of links) {
+      const href = a?.getAttribute('href') || '';
+      if (!href || href === '#') continue;
+      const img = a.querySelector('img');
+
+      const spans = Array.from(a.querySelectorAll('.body span'))
+        .map((el) => (el?.textContent || '').trim())
+        .filter(Boolean);
+
+      const externalIdText = spans.find((t) => t.startsWith('#')) || '';
+      const dateText = spans.find((t) => /^\d{4}-\d{2}-\d{2}$/.test(t)) || '';
+      const rest = spans.filter((t) => t !== externalIdText && t !== dateText);
+      const nameText = rest[0] || '';
+      const msgText = rest.slice(1).join(' ') || '';
+
+      items.push({
+        id: `dom-${i++}`,
+        url: href,
+        alt: img?.getAttribute('alt') || '(untitled)',
+        date: dateText,
+        name: nameText,
+        message: msgText,
+      });
+    }
+    return items;
+  }
+
+  function setFsUi() {
+    if (fsCountEl) fsCountEl.textContent = `${fsItemsLen} items`;
+    if (fsSpeedEl) fsSpeedEl.textContent = `${Math.round(fsSpeed)}px/s`;
+  }
+
+  // -----------------
+  // Parapara text effect
+  //  - テキスト更新時だけ短時間ランダム文字→確定
+  // -----------------
+  const PARAPARA_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!?#$%&*+-';
+  const paraparaStates = new WeakMap();
+
+  function stopParapara(el) {
+    const s = paraparaStates.get(el);
+    if (s?.rafId) window.cancelAnimationFrame(s.rafId);
+    paraparaStates.delete(el);
+  }
+
+  function paraparaSetText(el, finalText, { duration = 260 } = {}) {
+    if (!el) return;
+    stopParapara(el);
+    const final = String(finalText ?? '');
+
+    if (prefersReducedMotion || final.length === 0) {
+      el.textContent = final;
+      return;
+    }
+
+    const start = performance.now();
+    const state = { rafId: 0 };
+    paraparaStates.set(el, state);
+
+    const pick = () => PARAPARA_CHARS[(Math.random() * PARAPARA_CHARS.length) | 0];
+
+    const frame = (ts) => {
+      const t = clamp((ts - start) / duration, 0, 1);
+      const reveal = Math.floor(final.length * t);
+      let out = '';
+      for (let i = 0; i < final.length; i++) {
+        const c = final[i];
+        if (i < reveal) out += c;
+        else if (c === ' ') out += ' ';
+        else out += pick();
+      }
+      el.textContent = out;
+
+      if (t < 1) state.rafId = window.requestAnimationFrame(frame);
+      else el.textContent = final;
+    };
+
+    state.rafId = window.requestAnimationFrame(frame);
+  }
+
+  let lastInfoKey = '';
+  function setInfoFromItem(item) {
+    if (!fsInfoEl) return;
+    const date = String(item?.date || '').trim();
+    const name = String(item?.name || '').trim();
+    const message = String(item?.message || '').trim();
+    const key = `${date}|${name}|${message}`;
+    if (key === lastInfoKey) return;
+    lastInfoKey = key;
+
+    paraparaSetText(fsInfoDateEl, date || '—');
+    paraparaSetText(fsInfoMsgEl, message || '');
+    paraparaSetText(fsInfoNameEl, name || '—');
+    fsInfoEl.classList.toggle('has-msg', !!message);
+  }
+
+  function makeFsItemEl(item) {
+    const fig = document.createElement('figure');
+    fig.className = 'fs-item';
+    fig.dataset.id = String(item?.id || '');
+    fig.dataset.date = String(item?.date || '');
+    fig.dataset.name = String(item?.name || '');
+    fig.dataset.message = String(item?.message || '');
+
+    const img = document.createElement('img');
+    img.className = 'fs-img';
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.alt = item?.alt || '';
+    img.src = item?.url || '';
+
+    fig.appendChild(img);
+
+    fig.addEventListener('click', () => {
+      if (!item?.url) return;
+      window.open(item.url, '_blank', 'noreferrer');
+    });
+
+    return fig;
+  }
+
+  function renderFilmstrip(items) {
+    if (!fsTrackEl) return;
+    const safeItems = Array.isArray(items) ? items.filter((x) => x && x.url) : [];
+    fsItemsLen = safeItems.length;
+    setFsUi();
+
+    // 中央の要素は後で計算するので、ここでは一旦プレースホルダを出す
+    setInfoFromItem(null);
+
+    if (safeItems.length === 0) {
+      fsTrackEl.innerHTML = '<div class="fs-loading">No images</div>';
+      fsCycleWidth = 0;
+      fsItemEls = [];
+      return;
+    }
+
+    fsTrackEl.innerHTML = '';
+
+    const g1 = document.createElement('div');
+    g1.className = 'fs-group';
+    for (const item of safeItems) g1.appendChild(makeFsItemEl(item));
+
+    const g2 = document.createElement('div');
+    g2.className = 'fs-group';
+    for (const item of safeItems) g2.appendChild(makeFsItemEl(item));
+
+    fsTrackEl.appendChild(g1);
+    fsTrackEl.appendChild(g2);
+
+    fsItemEls = Array.from(fsTrackEl.querySelectorAll('.fs-item'));
+    fsFocusLastTs = 0;
+
+    window.requestAnimationFrame(() => {
+      const rect = g1.getBoundingClientRect();
+      const w = Math.max(rect.width || 0, g1.scrollWidth || 0);
+      fsCycleWidth = Math.max(1, w);
+      // レイアウト確定後に「中央の要素」を拾って情報を更新
+      updateFocusInfo();
+    });
+  }
+
+  function updateFocusInfo() {
+    if (!fsOpen) return;
+    if (!fsEl) return;
+
+    const els = fsItemEls;
+    if (!els || els.length === 0) return;
+
+    const stageW = window.innerWidth || 1;
+    const centerX = stageW * 0.5;
+
+    let bestEl = null;
+    let bestDist = Infinity;
+    for (const el of els) {
+      const r = el.getBoundingClientRect();
+      if (r.right <= 0 || r.left >= stageW) continue;
+      const cx = (r.left + r.right) * 0.5;
+      const d = Math.abs(cx - centerX);
+      if (d < bestDist) {
+        bestDist = d;
+        bestEl = el;
+      }
+    }
+    if (!bestEl) return;
+    setInfoFromItem({
+      date: bestEl.dataset.date,
+      name: bestEl.dataset.name,
+      message: bestEl.dataset.message,
+    });
+  }
+
+  function updateFocusInfoThrottled(ts) {
+    // 毎フレーム getBoundingClientRect を回すのは重いので間引く
+    if (ts - fsFocusLastTs < 120) return;
+    fsFocusLastTs = ts;
+    updateFocusInfo();
+  }
+
+  function tick(ts) {
+    rafId = window.requestAnimationFrame(tick);
+    if (!fsOpen) return;
+    if (!fsTrackEl) return;
+
+    if (!fsLastTs) fsLastTs = ts;
+    const dt = Math.min(0.05, Math.max(0, (ts - fsLastTs) / 1000));
+    fsLastTs = ts;
+
+    if (!fsPaused && fsSpeed > 0 && fsCycleWidth > 0) {
+      fsOffset += dt * fsSpeed;
+      if (fsOffset >= fsCycleWidth) fsOffset -= fsCycleWidth;
+      fsTrackEl.style.transform = `translate3d(${-fsOffset}px, 0, 0)`;
+    }
+
+    updateFocusInfoThrottled(ts);
+  }
+
+  async function enterFullscreenIfPossible() {
+    if (!fsEl) return;
+    try {
+      if (!document.fullscreenElement && fsEl.requestFullscreen) {
+        await fsEl.requestFullscreen();
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  function openFs({ requestFullscreen = false } = {}) {
+    if (!fsEl) return;
+    fsOpen = true;
+    fsEl.hidden = false;
+    fsEl.setAttribute('aria-hidden', 'false');
+    document.documentElement.classList.add('is-fs');
+
+    const items = readItemsFromGridDom();
+    renderFilmstrip(items);
+    fsPaused = false;
+    fsOffset = 0;
+    fsLastTs = 0;
+
+    if (!rafId) rafId = window.requestAnimationFrame(tick);
+    if (requestFullscreen) enterFullscreenIfPossible();
+  }
+
+  function closeFs() {
+    if (!fsEl) return;
+    fsOpen = false;
+    fsEl.hidden = true;
+    fsEl.setAttribute('aria-hidden', 'true');
+    document.documentElement.classList.remove('is-fs');
+    fsPaused = false;
+    fsOffset = 0;
+    fsLastTs = 0;
+    lastInfoKey = '';
+    fsItemEls = [];
+    fsItemsLen = 0;
+    if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    }
+  }
+
+  function toggleFs() {
+    if (fsOpen) closeFs();
+    else openFs({ requestFullscreen: true });
+  }
+
+  if (fsBtn) fsBtn.addEventListener('click', () => toggleFs());
+  if (fsCloseBtn) fsCloseBtn.addEventListener('click', () => closeFs());
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'f' || e.key === 'F') {
+      e.preventDefault();
+      toggleFs();
+      return;
+    }
+    if (!fsOpen) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeFs();
+      return;
+    }
+    if (e.key === ' ') {
+      e.preventDefault();
+      fsPaused = !fsPaused;
+      return;
+    }
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      fsSpeed = clamp(fsSpeed + 10, 0, 300);
+      setFsUi();
+      return;
+    }
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      fsSpeed = clamp(fsSpeed - 10, 0, 300);
+      setFsUi();
+      return;
+    }
+  });
 
   async function refreshFromApi() {
     if (!grid) return;
@@ -156,6 +514,8 @@ const fmtDate = (iso?: string) => {
 </script>
 
 <style lang="scss" is:global>
+  @import url('https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap');
+
   .wrap {
     width: 100%;
     max-width: 1200px;
@@ -228,6 +588,159 @@ const fmtDate = (iso?: string) => {
     
   }
 
+  /* Fullscreen overlay */
+  .fs {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: #000;
+    color: #fff;
+    overflow: hidden;
+  }
+
+  .fs-ui {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    z-index: 2;
+    font-family: "Space Mono", monospace;
+  }
+
+  .fs-hint {
+    font-size: 10px;
+    opacity: 0.75;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .fs-close {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    border: 1px solid rgba(255, 255, 255, 0.32);
+    background: rgba(0, 0, 0, 0.25);
+    color: #fff;
+    padding: 6px 10px;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+  }
+
+  .fs-meta {
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+    font-size: 10px;
+    opacity: 0.8;
+    pointer-events: none;
+  }
+
+  .fs-info {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate3d(-50%, -50%, 0);
+    z-index: 2;
+    width: min(720px, calc(100vw - 32px));
+    text-align: center;
+    font-family: "Space Mono", "Zen Kaku Gothic New", "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    color: rgba(255, 255, 255, 1);
+    pointer-events: none;
+    mix-blend-mode: difference;
+  }
+
+  // .fs-info::before {
+  //   content: "";
+  //   position: absolute;
+  //   inset: -28px -30px;
+  //   background: radial-gradient(120% 140% at 50% 45%, rgba(0,0,0,0.62), rgba(0,0,0,0.18) 55%, rgba(0,0,0,0.0) 78%);
+  //   filter: blur(10px);
+  //   mask-image: radial-gradient(120% 140% at 50% 50%, rgba(0,0,0,1) 0%, rgba(0,0,0,0.0) 78%);
+  // }
+
+  .fs-info > * {
+    position: relative;
+  }
+
+  .fs-info-date {
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    opacity: 0.78;
+  }
+
+  .fs-info-name {
+    margin-top: 12px;
+    font-size: 18px;
+    letter-spacing: 0.02em;
+    opacity: 0.82;
+  }
+
+  .fs-info-msg {
+    margin-top: 12px;
+    font-size: 64px;
+    font-weight: 800;
+    line-height: 1.5;
+    opacity: 0.95;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .fs-info:not(.has-msg) .fs-info-msg {
+    display: none;
+  }
+
+  .fs-stage {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    display: grid;
+    place-items: center start;
+  }
+
+  .fs-track {
+    width: max-content;
+    display: flex;
+    align-items: center;
+    will-change: transform;
+    transform: translate3d(0, 0, 0);
+    padding: 0 6vw;
+  }
+
+  .fs-group {
+    display: flex;
+    align-items: center;
+  }
+
+  .fs-item {
+    height: 90vh;
+    flex: 0 0 auto;
+    margin: 0;
+    cursor: pointer;
+    line-height: 0;
+  }
+
+  .fs-img {
+    height: 90vh;
+    width: auto;
+    max-width: 96vw;
+    object-fit: contain;
+    display: block;
+    user-select: none;
+    -webkit-user-drag: none;
+    background: #000;
+  }
+
+  .fs-loading {
+    font-family: "Space Mono", monospace;
+    font-size: 12px;
+    opacity: 0.75;
+    padding-left: 6vw;
+  }
+
   .ph {
     width: 100%;
     height: 100%;
@@ -245,9 +758,8 @@ const fmtDate = (iso?: string) => {
   .body span {
     display: block;
     font-size: 10px;
-    opacity: 0.75;
     line-height: 1.4;
-    font-family: "Space Mono", monospace;
+    font-family: "Space Mono", "Zen Kaku Gothic New", monospace;
     color: #fff
   }
 
