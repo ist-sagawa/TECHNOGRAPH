@@ -9,7 +9,9 @@ const __dirname = path.dirname(__filename);
 const args = process.argv.slice(2);
 const targetDir = args[0];
 if (!targetDir) {
-  console.error('Usage: node scripts/convert-to-avif.js <directory_path> [--quality=60] [--max-dim=1920]');
+  console.error(
+    'Usage: node scripts/convert-to-avif.js <directory_path> [--quality=60] [--max-dim=1920] [--filter=<regex>] [--output-dir=<dir>]'
+  );
   process.exit(1);
 }
 
@@ -22,12 +24,29 @@ const getArgValue = (prefix, fallback) => {
 
 const quality = Math.max(1, Math.min(100, Number(getArgValue('--quality=', '60')) || 60));
 const maxDim = Math.max(1, Number(getArgValue('--max-dim=', '1920')) || 1920);
+const filterRaw = getArgValue('--filter=', '');
+const outputDirRaw = getArgValue('--output-dir=', '');
+let filterRe = null;
+if (filterRaw) {
+  try {
+    filterRe = new RegExp(filterRaw);
+  } catch (err) {
+    console.error(`Invalid --filter regex: ${filterRaw}`);
+    console.error(err?.message || err);
+    process.exit(1);
+  }
+}
 
 const dirPath = path.resolve(targetDir);
+const outDirPath = outputDirRaw ? path.resolve(outputDirRaw) : dirPath;
 
 if (!fs.existsSync(dirPath)) {
   console.error(`Directory not found: ${dirPath}`);
   process.exit(1);
+}
+
+if (outDirPath !== dirPath) {
+  fs.mkdirSync(outDirPath, { recursive: true });
 }
 
 const files = fs.readdirSync(dirPath);
@@ -36,17 +55,21 @@ const imageFiles = files.filter(file => {
   return ['.jpg', '.jpeg', '.png'].includes(ext);
 });
 
-if (imageFiles.length === 0) {
+const filteredImageFiles = filterRe ? imageFiles.filter((f) => filterRe.test(f)) : imageFiles;
+
+if (filteredImageFiles.length === 0) {
   console.log('No images found to convert.');
   process.exit(0);
 }
 
 async function convert() {
-  console.log(`🚀 Starting conversion of ${imageFiles.length} images in ${dirPath}...\n`);
+  console.log(
+    `🚀 Starting conversion of ${filteredImageFiles.length} images in ${dirPath}${filterRe ? ` (filter: ${filterRe})` : ''}...\n`
+  );
   
-  for (const file of imageFiles) {
+  for (const file of filteredImageFiles) {
     const inputPath = path.join(dirPath, file);
-    const outputPath = path.join(dirPath, file.replace(path.extname(file), '.avif'));
+    const outputPath = path.join(outDirPath, file.replace(path.extname(file), '.avif'));
     
     try {
       const inStat = fs.statSync(inputPath);

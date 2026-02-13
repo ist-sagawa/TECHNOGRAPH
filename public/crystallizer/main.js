@@ -43,7 +43,8 @@ function initSourceImagesFromFiles(files) {
   const prevCurrentName = State.currentSourceName;
 
   const sampledEntries = (files || []).map((filename) => {
-    const stem = String(filename || '').replace(/\.[^.]+$/, '');
+    const baseName = String(filename || '').split('/').pop() || String(filename || '');
+    const stem = baseName.replace(/\.[^.]+$/, '');
     const params = createDefaultDitherParams();
     // Crystalizeでプールを入れ替えても“見え方”が急に変わりすぎないように、
     // ファイル名から決まる安定したON/OFFを使う（ランダムではない）。

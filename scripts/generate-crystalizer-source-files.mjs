@@ -6,7 +6,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 
-const INPUT_DIR = path.join(PROJECT_ROOT, 'public', 'crystallizer', 'source');
+const SOURCE_ROOT = path.join(PROJECT_ROOT, 'public', 'crystallizer', 'source');
+const INPUT_DIR = path.join(SOURCE_ROOT, 'img');
 const OUTPUT_FILE = path.join(PROJECT_ROOT, 'public', 'crystallizer', 'modules', 'sourceFiles.generated.js');
 
 const IMAGE_EXT_PRIORITY = ['avif', 'webp', 'png', 'jpg', 'jpeg', 'gif'];
@@ -21,6 +22,21 @@ function stemOf(filename) {
   return filename.replace(/\.[^.]+$/, '');
 }
 
+async function walkFiles(dir) {
+  const out = [];
+  const dirents = await fs.readdir(dir, { withFileTypes: true });
+  for (const d of dirents) {
+    if (!d || !d.name || d.name.startsWith('.')) continue;
+    const full = path.join(dir, d.name);
+    if (d.isDirectory()) {
+      out.push(...(await walkFiles(full)));
+    } else if (d.isFile()) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
 function pickBetter(a, b) {
   // a/b: { name, ext }
   const ai = IMAGE_EXT_PRIORITY.indexOf(a.ext);
@@ -31,20 +47,17 @@ function pickBetter(a, b) {
   return ai <= bi ? a : b;
 }
 
-const dirents = await fs.readdir(INPUT_DIR, { withFileTypes: true });
-
-const candidates = dirents
-  .filter((d) => d.isFile())
-  .map((d) => d.name)
-  .filter((name) => !name.startsWith('.'))
+const filesAbs = await walkFiles(INPUT_DIR);
+const candidates = filesAbs
+  .map((abs) => path.relative(SOURCE_ROOT, abs).split(path.sep).join('/'))
   // BG pool は別管理
-  .filter((name) => !/^bg_/i.test(name))
-  .filter((name) => IMAGE_EXT_SET.has(extOf(name)));
+  .filter((rel) => !/^bg_/i.test(path.posix.basename(rel)))
+  .filter((rel) => IMAGE_EXT_SET.has(extOf(rel)));
 
 const byStem = new Map();
 for (const name of candidates) {
   const ext = extOf(name);
-  const stem = stemOf(name);
+  const stem = stemOf(path.posix.basename(name));
   const prev = byStem.get(stem);
   const next = { name, ext };
   byStem.set(stem, prev ? pickBetter(prev, next) : next);

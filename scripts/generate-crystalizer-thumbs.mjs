@@ -7,8 +7,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 
-const INPUT_DIR = path.join(PROJECT_ROOT, 'public', 'crystallizer', 'source');
-const OUTPUT_DIR = path.join(INPUT_DIR, 'thumbs');
+const SOURCE_ROOT = path.join(PROJECT_ROOT, 'public', 'crystallizer', 'source');
+const INPUT_DIR = path.join(SOURCE_ROOT, 'img');
+const OUTPUT_DIR = path.join(SOURCE_ROOT, 'thumbs');
 
 const THUMB_SIZE = 96; // thumbnail box size (px)
 const WEBP_QUALITY = 60;
@@ -26,6 +27,21 @@ function stemOf(filename) {
   return filename.replace(/\.[^.]+$/, '');
 }
 
+async function walkFiles(dir) {
+  const out = [];
+  const dirents = await fs.readdir(dir, { withFileTypes: true });
+  for (const d of dirents) {
+    if (!d || !d.name || d.name.startsWith('.')) continue;
+    const full = path.join(dir, d.name);
+    if (d.isDirectory()) {
+      out.push(...(await walkFiles(full)));
+    } else if (d.isFile()) {
+      out.push(full);
+    }
+  }
+  return out;
+}
+
 function pickBetter(a, b) {
   const ai = IMAGE_EXT_PRIORITY.indexOf(a.ext);
   const bi = IMAGE_EXT_PRIORITY.indexOf(b.ext);
@@ -37,17 +53,16 @@ function pickBetter(a, b) {
 
 await fs.mkdir(OUTPUT_DIR, { recursive: true });
 
-const dirents = await fs.readdir(INPUT_DIR, { withFileTypes: true });
-const files = dirents
-  .filter((d) => d.isFile())
-  .map((d) => d.name)
-  .filter((name) => IMAGE_EXT_SET.has(extOf(name)));
+const filesAbs = await walkFiles(INPUT_DIR);
+const files = filesAbs
+  .map((abs) => path.relative(SOURCE_ROOT, abs).split(path.sep).join('/'))
+  .filter((rel) => IMAGE_EXT_SET.has(extOf(rel)));
 
 // Pick one "best" file per stem
 const bestByStem = new Map();
 for (const name of files) {
   const ext = extOf(name);
-  const stem = stemOf(name);
+  const stem = stemOf(path.posix.basename(name));
   const prev = bestByStem.get(stem);
   if (!prev) bestByStem.set(stem, { name, ext });
   else bestByStem.set(stem, pickBetter(prev, { name, ext }));
@@ -58,7 +73,7 @@ let skipped = 0;
 let failed = 0;
 
 for (const [stem, pick] of bestByStem.entries()) {
-  const inputPath = path.join(INPUT_DIR, pick.name);
+  const inputPath = path.join(SOURCE_ROOT, pick.name);
   const outPath = path.join(OUTPUT_DIR, `${stem}.webp`);
 
   try {
