@@ -11,6 +11,7 @@ const UIr = {
   dither: {},
   thumbs: null,
   transformBtn: null,
+  transformBtnGenerate: null,
   alphaBtn: null,
   syncAlphaBtn: null,
   sendNameInput: null,
@@ -53,10 +54,11 @@ window.cancelImagePlacing = cancelImagePlacing;
 
 // Sync Active State
 export function syncTransformButton() {
-  if (UIr.transformBtn) {
-    if (State.frameFreeTransform) UIr.transformBtn.addClass('active');
-    else UIr.transformBtn.removeClass('active');
-  }
+  const buttons = [UIr.transformBtn, UIr.transformBtnGenerate].filter(Boolean);
+  buttons.forEach((btn) => {
+    if (State.frameFreeTransform) btn.addClass('active');
+    else btn.removeClass('active');
+  });
 }
 // Backward-compat shims
 window.syncTransformButton = syncTransformButton;
@@ -88,8 +90,25 @@ export function initControlsPanel(container) {
     if (window.randomizeCrystalize) window.randomizeCrystalize();
   });
 
+  const toggleTransformMode = () => {
+    cancelImagePlacing();
+    State.frameFreeTransform = !State.frameFreeTransform;
+    State.frameTransformAll = State.frameFreeTransform;
+    State.frameTransform = null;
+
+    if (State.frameFreeTransform) {
+      const faces = (State.faces || []).filter((f) => f && f.points && f.points.length >= 3);
+      State.selectedFaces = faces;
+      State.selectedFace = faces.length ? faces[faces.length - 1] : null;
+    }
+
+    syncTransformButton();
+    State.needsCompositeUpdate = true;
+  };
+
   const rndImgBtn = window.createButton('RND IMG').parent(row1);
   rndImgBtn.addClass('btn-square');
+  rndImgBtn.addClass('rnd-img-btn');
   rndImgBtn.mousePressed(() => {
     cancelImagePlacing();
     if (window.randomizeFrameImages) window.randomizeFrameImages();
@@ -110,6 +129,14 @@ export function initControlsPanel(container) {
     runDistort();
   });
 
+  // SPでは ARRANGE セクション自体を隠しているため、GENERATE列にTRANSFORMを用意する
+  const transGenBtn = window.createButton('TRANSFORM').parent(row1);
+  transGenBtn.addClass('btn-square');
+  transGenBtn.addClass('generate-transform-btn');
+  UIr.transformBtnGenerate = transGenBtn;
+  syncTransformButton();
+  transGenBtn.mousePressed(toggleTransformMode);
+
   // --- ARRANGE SECTION ---
   createSection(container, 'ARRANGE');
   const arrContent = window.createDiv('').addClass('operation-content arrange').parent(container);
@@ -125,19 +152,7 @@ export function initControlsPanel(container) {
   syncTransformButton();
 
   transBtn.mousePressed(() => {
-    cancelImagePlacing();
-    State.frameFreeTransform = !State.frameFreeTransform;
-    State.frameTransformAll = State.frameFreeTransform;
-    State.frameTransform = null;
-
-    if (State.frameFreeTransform) {
-      const faces = (State.faces || []).filter(f => f && f.points && f.points.length >= 3);
-      State.selectedFaces = faces;
-      State.selectedFace = faces.length ? faces[faces.length - 1] : null;
-    }
-
-    syncTransformButton();
-    State.needsCompositeUpdate = true;
+    toggleTransformMode();
   });
 
   // --- SOURCE IMAGE SECTION ---
@@ -942,6 +957,32 @@ function clearAllSourceImages() {
   refreshThumbnails();
 }
 
+let autoCrystalizeTimer = 0;
+let autoCrystalizeAttempts = 0;
+function scheduleAutoCrystalizeFromLocal() {
+  if (autoCrystalizeTimer) window.clearTimeout(autoCrystalizeTimer);
+  autoCrystalizeTimer = window.setTimeout(() => {
+    autoCrystalizeTimer = 0;
+
+    const all = Array.isArray(State.sourceImages) ? State.sourceImages : [];
+    const locals = all.filter((e) => e && e.isLocal);
+    if (locals.length === 0) return;
+
+    const stillLoading = locals.some((e) => e.loading || !e.originalImg);
+    if (stillLoading && autoCrystalizeAttempts < 20) {
+      autoCrystalizeAttempts++;
+      scheduleAutoCrystalizeFromLocal();
+      return;
+    }
+    autoCrystalizeAttempts = 0;
+
+    try {
+      if (typeof window.randomizeCrystalizeLocalOnly === 'function') window.randomizeCrystalizeLocalOnly();
+      else if (typeof window.randomizeCrystalize === 'function') window.randomizeCrystalize();
+    } catch { }
+  }, 250);
+}
+
 function addLocalSource(file) {
   const url = URL.createObjectURL(file);
   const uniqueName = `local_${Date.now()}_${file.name}`;
@@ -953,12 +994,17 @@ function addLocalSource(file) {
   State.currentSourceName = entry.name;
   State.currentSourcePath = entry.path;
 
+  // Debounced: if user drops multiple files, crystallize once after they are ready.
+  scheduleAutoCrystalizeFromLocal();
+
   ensureSourceImageLoaded(entry, () => {
     reprocessSourceEntry(entry, () => {
       entry.loading = false;
       State.currentSourceImg = entry.originalImg;
       State.needsCompositeUpdate = true;
       refreshThumbnails();
+
+      scheduleAutoCrystalizeFromLocal();
     });
   });
 }

@@ -286,6 +286,39 @@ window.randomizeCrystalize = () => {
     updatePanelUI();
   });
 };
+
+// Crystallize using ONLY user-dropped local images (if any), without resampling SOURCE_FILES.
+// Used by the drop-image workflow so the result immediately reflects the dropped set.
+window.randomizeCrystalizeLocalOnly = () => {
+  runWithBusyOverlay(() => {
+    const prevSources = Array.isArray(State.sourceImages) ? State.sourceImages : [];
+    const localOnly = prevSources.filter((e) => e && e.isLocal);
+
+    if (localOnly.length === 0) {
+      // Fallback: just run normal crystallize without resampling
+      resetDitToCenterSilently();
+      randomizeCrystalize();
+      randomizeDithererUsedOnly();
+      syncDitBaselineForUsedFrames();
+      randomizeArrangeSliders();
+      updatePanelUI();
+      return;
+    }
+
+    // Temporarily restrict the pool so frame image picks come from local drops.
+    State.sourceImages = localOnly;
+    try {
+      resetDitToCenterSilently();
+      randomizeCrystalize();
+      randomizeDithererUsedOnly();
+      syncDitBaselineForUsedFrames();
+      randomizeArrangeSliders();
+      updatePanelUI();
+    } finally {
+      State.sourceImages = prevSources;
+    }
+  });
+};
 window.randomizeFramerOnly = () => {
   runWithBusyOverlay(() => {
     randomizeFramerOnly();
@@ -348,6 +381,14 @@ window.setup = () => {
   const canvas = window.createCanvas(State.canvasW || 1920, State.canvasH || 1920);
   canvas.parent('canvas-container');
   State.ui.canvas = canvas;
+
+  // Tone filter support detection (used by renderer fallback)
+  try {
+    const ctx = canvas?.elt?.getContext?.('2d');
+    State.ui.supportsCanvasFilter = !!(ctx && 'filter' in ctx);
+  } catch {
+    State.ui.supportsCanvasFilter = false;
+  }
 
   // CSS でアスペクト比を維持してコンテナ内に収める
   canvas.style('width', '100%');

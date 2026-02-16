@@ -288,6 +288,56 @@ input[type="range"]::-moz-range-thumb {
   cursor: pointer;
 }
 
+/* Touch devices: make sliders easier to grab */
+@media (hover: none) and (pointer: coarse) {
+  input[type="range"] {
+    height: 6px;
+    margin: 6px 0;
+    border-radius: 999px;
+    touch-action: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    width: 26px;
+    height: 26px;
+    border-width: 2px;
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 26px;
+    height: 26px;
+    border-width: 2px;
+  }
+
+  .control-row {
+    gap: 10px;
+  }
+
+  .control-label {
+    font-size: 12px;
+  }
+
+  /* iOS Safari: prevent focus zoom on inputs (font-size must be >= 16px) */
+  .send-input,
+  .send-textarea {
+    font-size: 16px;
+  }
+
+  /* SP: hide ARRANGE sliders (too fiddly on real devices) */
+  .section-header.arrange,
+  .operation-content.arrange {
+    display: none;
+  }
+
+  /* SP: RND IMGは誤タップ/重いので隠し、代わりにTRANSFORMを出す */
+  .rnd-img-btn {
+    display: none !important;
+  }
+  .generate-transform-btn {
+    display: flex !important;
+  }
+}
+
 /* Buttons */
 /* Section Headers (Geneate / Source Image) */
 .section-header {
@@ -431,6 +481,8 @@ input[type="range"]::-moz-range-thumb {
   background: #d9d9d9;
   border-left: 1px solid #1a1a1a;
   border-radius: 0;
+  color: #000;
+  -webkit-text-fill-color: #000;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -443,8 +495,20 @@ input[type="range"]::-moz-range-thumb {
   }
 }
 
+/* Default: GENERATE列のTRANSFORMはSPだけ表示 */
+.generate-transform-btn {
+  display: none;
+}
+
 .btn-square:hover {
   background: #ccc;
+}
+
+.btn-square.active,
+.btn-square.active:hover {
+  background: #000;
+  color: #fff;
+  -webkit-text-fill-color: #fff;
 }
 
 .arrange {
@@ -496,6 +560,8 @@ input[type="range"]::-moz-range-thumb {
   background: #d9d9d9;
   border: 1px solid #1a1a1a;
   border-radius: 0;
+  color: #000;
+  -webkit-text-fill-color: #000;
   font-size: 9px;
   cursor: pointer;
 }
@@ -595,6 +661,8 @@ input[type="range"]::-moz-range-thumb {
   background: #FF1F32;
   border: 1px solid #1a1a1a;
   border-radius: 4px;
+  color: #fff;
+  -webkit-text-fill-color: #fff;
   font-size: 12px;
   cursor: pointer;
 }
@@ -606,10 +674,12 @@ input[type="range"]::-moz-range-thumb {
 .send-btn:disabled {
   opacity: 0.65;
   cursor: default;
+  color: #fff;
+  -webkit-text-fill-color: #fff;
 }
 
 .send-input {
-  width: 140px;
+  width: 80px;
   height: 32px;
   border: 1px solid #1a1a1a;
   border-radius: 4px;
@@ -639,6 +709,8 @@ input[type="range"]::-moz-range-thumb {
   background: #d9d9d9;
   border: 1px solid #1a1a1a;
   border-radius: 4px;
+  color: #000;
+  -webkit-text-fill-color: #000;
   font-size: 10px;
   cursor: pointer;
 }

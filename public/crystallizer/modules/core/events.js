@@ -69,6 +69,8 @@ function isEventFromUi(e) {
   if (ui && t && ui.contains(t)) return true;
   // Canvas overlay UI (e.g. size label)
   if (t && typeof t.closest === 'function' && t.closest('.canvas-ui')) return true;
+  // Fixed page-level UI (e.g. Back link) should never be treated as canvas interaction
+  if (t && typeof t.closest === 'function' && t.closest('.to-gallery')) return true;
   return false;
 }
 

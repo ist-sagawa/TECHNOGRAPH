@@ -1,10 +1,5 @@
 ---
-import SketchLayout from "../../layouts/SketchLayout.astro";
-const title = "CRYSTALLIZER";
-const date = "crystallizer";
+import Gallery from "@/components/crystallizer/GalleryPage.astro";
 ---
 
-<SketchLayout title={title} date={date}>
-  <link slot="head" rel="stylesheet" href={`/${date}/style.css`} />
-  <script slot="head" type="module" src={`/${date}/main.js`}></script>
-</SketchLayout>
+<Gallery />

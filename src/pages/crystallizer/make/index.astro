@@ -1,0 +1,30 @@
+---
+import SketchLayout from "../../../layouts/SketchLayout.astro";
+const title = "CRYSTALLIZER";
+const date = "crystallizer";
+---
+
+<SketchLayout title={title} date={date} disableZoom={true}>
+  <link slot="head" rel="stylesheet" href={`/${date}/style.css`} />
+  <script slot="head" type="module" src={`/${date}/main.js`}></script>
+
+  <a class="to-gallery" href="/crystallizer/">Back</a>
+
+  <style>
+    .to-gallery {
+      position: fixed;
+      top: 0px;
+      left: 0px;
+      z-index: 99999;
+      font-family: "Space Mono", monospace;
+      font-size: 14px;
+      letter-spacing: 0.08em;
+      background: rgba(0, 0, 0, 0.25);
+      color: #fff;
+      padding: 8px 16px;
+      text-decoration: none;
+      background: #000;
+      border-radius: 0 0 4px 0;
+    }
+  </style>
+</SketchLayout>

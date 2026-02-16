@@ -1,5 +1,5 @@
 import { State } from '../state.js';
-import { getPointsBounds } from './math.js';
+import { getPointsBounds, rgbToHsb, hsbToRgb } from './math.js';
 import { findNearbyPointInFaces, findTopmostFaceAt } from './picking.js';
 
 export function drawCheckerboard(size) {
@@ -68,6 +68,113 @@ export function renderComposite() {
   State.needsCompositeUpdate = false;
 }
 
+function buildToneFilterString(tone) {
+  if (!tone) return 'none';
+  const b = Number(tone.brightness ?? 1.0);
+  const c = Number(tone.contrast ?? 1.0);
+  const s = Number(tone.saturation ?? 1.0);
+  const h = Number(tone.hue ?? 0);
+  // Use the same grammar as CSS filter.
+  return `brightness(${b}) contrast(${c}) saturate(${s}) hue-rotate(${h}deg)`;
+}
+
+const toneImageCache = new WeakMap();
+
+function toneKey(tone) {
+  if (!tone) return '';
+  const h = Math.round(Number(tone.hue ?? 0));
+  const s = Number(tone.saturation ?? 1.0);
+  const b = Number(tone.brightness ?? 1.0);
+  const c = Number(tone.contrast ?? 1.0);
+  // Keep key stable while dragging.
+  return `${h}|${s.toFixed(2)}|${b.toFixed(2)}|${c.toFixed(2)}`;
+}
+
+function getToneAdjustedImage(img, tone) {
+  if (!img || !tone) return img;
+
+  const enabled = !!(tone.enabled ?? true);
+  if (!enabled) return img;
+
+  const key = toneKey(tone);
+  if (!key) return img;
+
+  let map = toneImageCache.get(img);
+  if (!map) {
+    map = new Map();
+    toneImageCache.set(img, map);
+  }
+  const cached = map.get(key);
+  if (cached) return cached;
+
+  // Work on a bounded size for mobile performance.
+  const w0 = Math.max(1, img.width || 1);
+  const h0 = Math.max(1, img.height || 1);
+  const maxDim = 1920;
+  const scale = (Math.max(w0, h0) > maxDim) ? (maxDim / Math.max(w0, h0)) : 1;
+  const w = Math.max(1, Math.floor(w0 * scale));
+  const h = Math.max(1, Math.floor(h0 * scale));
+
+  const temp = window.createGraphics(w, h);
+  temp.pixelDensity(1);
+  temp.noSmooth();
+  if (temp.drawingContext) temp.drawingContext.imageSmoothingEnabled = false;
+  temp.clear();
+  temp.image(img, 0, 0, w, h);
+  temp.loadPixels();
+
+  const brightness = Number(tone.brightness ?? 1.0);
+  const contrast = Number(tone.contrast ?? 1.0);
+  const saturation = Number(tone.saturation ?? 1.0);
+  const hue = Number(tone.hue ?? 0);
+
+  for (let i = 0; i < temp.pixels.length; i += 4) {
+    const a = temp.pixels[i + 3];
+    if (a === 0) continue;
+
+    let r = temp.pixels[i];
+    let g = temp.pixels[i + 1];
+    let b = temp.pixels[i + 2];
+
+    // Contrast around mid-gray then scale brightness.
+    r = (r - 128) * contrast + 128;
+    g = (g - 128) * contrast + 128;
+    b = (b - 128) * contrast + 128;
+
+    r = r * brightness;
+    g = g * brightness;
+    b = b * brightness;
+
+    if (hue !== 0 || saturation !== 1.0) {
+      let [hh, ss, vv] = rgbToHsb(
+        window.constrain(r, 0, 255),
+        window.constrain(g, 0, 255),
+        window.constrain(b, 0, 255),
+      );
+      hh = (hh + hue + 360) % 360;
+      ss = window.constrain(ss * saturation, 0, 1);
+      [r, g, b] = hsbToRgb(hh, ss, vv);
+    }
+
+    temp.pixels[i] = window.constrain(r, 0, 255);
+    temp.pixels[i + 1] = window.constrain(g, 0, 255);
+    temp.pixels[i + 2] = window.constrain(b, 0, 255);
+  }
+  temp.updatePixels();
+
+  const out = temp.get();
+  temp.remove();
+
+  // Keep cache small-ish: only the latest few keys per image.
+  map.set(key, out);
+  if (map.size > 6) {
+    const firstKey = map.keys().next().value;
+    map.delete(firstKey);
+  }
+
+  return out;
+}
+
 function drawFaceToPg(pg, face) {
   const pts = face.points;
   if (!pts || pts.length < 3) return;
@@ -91,16 +198,13 @@ function drawFaceToPg(pg, face) {
     const entry = face.imageName ? State.sourceImages.find(e => e.name === face.imageName) : null;
     const img = entry && entry.processedImg ? entry.processedImg : face.image;
 
-    // Crystal tone correction (only when crystalized)
+    // Tone correction (ARRANGE). Apply whenever enabled.
     const tone = State.crystalTone;
-    const shouldTone = !!(State.isCrystalized && tone);
-    if (shouldTone) {
-      const b = Number(tone.brightness ?? 1.0);
-      const c = Number(tone.contrast ?? 1.0);
-      const s = Number(tone.saturation ?? 1.0);
-      const h = Number(tone.hue ?? 0);
-      ctx.filter = `brightness(${b}) contrast(${c}) saturate(${s}) hue-rotate(${h}deg)`;
-    }
+    const shouldTone = !!(tone && (tone.enabled ?? true));
+    const canCanvasFilter = !!(ctx && 'filter' in ctx);
+    if (shouldTone && canCanvasFilter) ctx.filter = buildToneFilterString(tone);
+
+    const imgToDraw = (shouldTone && !canCanvasFilter) ? getToneAdjustedImage(img, tone) : img;
 
     const b = getPointsBounds(pts);
     const boxW = Math.max(1, b.maxX - b.minX);
@@ -115,9 +219,9 @@ function drawFaceToPg(pg, face) {
     const y = cy - h / 2;
 
     ctx.imageSmoothingEnabled = false;
-    pg.image(img, x, y, w, h);
+    pg.image(imgToDraw, x, y, w, h);
 
-    if (shouldTone) ctx.filter = 'none';
+    if (shouldTone && canCanvasFilter) ctx.filter = 'none';
   } else {
     // 画像がない場合は白（あるいは透明）
     ctx.fillStyle = '#ffffff';

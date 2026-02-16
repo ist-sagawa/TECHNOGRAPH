@@ -212,8 +212,8 @@ export function randomizeFrameImagesWithRandomDither() {
   }
 
   State.needsCompositeUpdate = true;
-  // 使われている画像は必ず dither ON になり、再処理される
-  randomizeDithererOnly();
+  // 使われている画像だけ dither を再処理する（RND IMG は軽くしたい）
+  randomizeDithererUsedOnly();
 }
 
 // Background-only image pool (8 images in BG_FILES)

@@ -6,15 +6,12 @@ let images: CrystalizerImage[] = [];
 try {
   images = await getCrystalizerImages({ limit: 240 });
 } catch (err) {
-  // Build should not fail if Sanity is temporarily unreachable (or local TLS is broken).
-  // The list is replaced by runtime fetch below.
-  console.warn('[crystallizer/gallery] getCrystalizerImages failed; falling back to runtime fetch only.', err);
+  console.warn('[crystallizer] getCrystalizerImages failed; falling back to runtime fetch only.', err);
   images = [];
 }
 
 const fmtDate = (iso?: string) => {
   if (!iso) return "";
-  // date はYYYY-MM-DDが入る想定。createdAtはISO。
   if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso;
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return String(iso);
@@ -25,80 +22,81 @@ const fmtDate = (iso?: string) => {
 };
 ---
 
-<Page title="Crystallizer Gallery" showSplash={false} showLogo={false}>
+<Page title="Crystallizer" showSplash={false} showLogo={false}>
   <main slot="content" class="wrap">
-    <header class="head">
-      <h2>Crystallizer Gallery</h2>
-      <div class="meta">
-        <a href="/crystallizer/">← Crystallizer</a>
-        <span class="count">{images.length} items</span>
-        <button class="fs-btn" type="button" aria-haspopup="dialog" aria-controls="fs" title="Fullscreen (F)">
-          Full
-        </button>
-      </div>
-    </header>
-
-    {images.length === 0 && <p class="empty">まだ登録がありません（SENDで送るとここに出ます）。</p>}
-
-    <section class="grid">
-      {images.map((item) => {
-        const imgUrl = item.image ? imageUrlFor(item.image).width(900).quality(80).auto("format").url() : "";
-        const date = item.date || item.createdAt;
-        const title = item.title || item.externalId || "(untitled)";
-        return (
-          <article class="card">
-            <a class="img" href={imgUrl} target="_blank" rel="noreferrer">
-              {imgUrl ? <img src={imgUrl} alt={title} loading="lazy" /> : <div class="ph">no image</div>}
-              <div class="body">
-                {item.externalId && <span>#{item.externalId}</span>}
-                {date && <span>{fmtDate(date)}</span>}
-                {item.name && <span>{item.name}</span>}
-                {item.message && <span>{item.message}</span>}
-              </div>
-            </a>
-          </article>
-        );
-      })}
-    </section>
-
-    <section id="fs" class="fs" hidden aria-hidden="true" role="dialog" aria-label="Fullscreen gallery">
+    <section
+      id="fs"
+      class="fs"
+      aria-hidden="false"
+      role="dialog"
+      aria-label="Crystallizer gallery"
+    >
       <div class="fs-ui">
-        <button class="fs-close" type="button" title="Close (Esc)">Close</button>
-        <div class="fs-hint">F: fullscreen / Esc: close / Space: pause</div>
+        <button class="mode-btn" type="button" title="ALL / GALLERY (Esc)">ALL</button>
+        <div class="fs-hint">F: fullscreen / Esc: ALL⇄GALLERY / Space: pause</div>
         <div class="fs-meta">
-          <span class="fs-count"></span>
+          <span class="fs-count">{images.length} items</span>
           <span class="fs-speed"></span>
         </div>
       </div>
+
+      <a class="make-crystal" href="/crystallizer/make/">MAKE CRYSTAL!</a>
+
       <div class="fs-info" aria-live="polite">
         <div class="fs-info-date"></div>
         <div class="fs-info-msg"></div>
         <div class="fs-info-name"></div>
       </div>
+
       <div class="fs-stage" aria-hidden="true">
-        <div class="fs-track" id="fs-track"></div>
+        <div class="fs-track" id="fs-track">
+          <div class="fs-loading">Loading…</div>
+        </div>
+      </div>
+
+      <div class="all-view" aria-hidden="true">
+        <section class="all-grid" aria-label="All items">
+          {images.map((item) => {
+            const imgUrl = item.image ? imageUrlFor(item.image).width(900).quality(80).auto("format").url() : "";
+            const date = item.date || item.createdAt;
+            const title = item.title || item.externalId || "(untitled)";
+            return (
+              <article class="card">
+                <a class="img" href={imgUrl} target="_blank" rel="noreferrer">
+                  {imgUrl ? <img src={imgUrl} alt={title} loading="lazy" /> : <div class="ph">no image</div>}
+                  <div class="body">
+                    {item.externalId && <span>#{item.externalId}</span>}
+                    {date && <span>{fmtDate(date)}</span>}
+                    {item.name && <span>{item.name}</span>}
+                    {item.message && <span>{item.message}</span>}
+                  </div>
+                </a>
+              </article>
+            );
+          })}
+        </section>
       </div>
     </section>
   </main>
 </Page>
 
 <script type="module">
-  // NOTE: 本番は静的ビルド(SSG)でHTMLが固定されるため、最新の一覧をruntime fetchで差し替える。
-  const grid = document.querySelector('.grid');
-  const countEl = document.querySelector('.count');
-
   const fsEl = document.getElementById('fs');
-  const fsBtn = document.querySelector('.fs-btn');
-  const fsCloseBtn = document.querySelector('.fs-close');
   const fsTrackEl = document.getElementById('fs-track');
   const fsCountEl = document.querySelector('.fs-count');
   const fsSpeedEl = document.querySelector('.fs-speed');
+
+  const modeBtn = document.querySelector('.mode-btn');
+  const allGridEl = document.querySelector('.all-grid');
+
   const fsInfoEl = document.querySelector('.fs-info');
   const fsInfoDateEl = document.querySelector('.fs-info-date');
   const fsInfoNameEl = document.querySelector('.fs-info-name');
   const fsInfoMsgEl = document.querySelector('.fs-info-msg');
 
   const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
   const fmtDate = (iso) => {
     if (!iso) return '';
@@ -111,26 +109,159 @@ const fmtDate = (iso?: string) => {
     return `${y}-${m}-${dd}`;
   };
 
+  let mode = 'gallery'; // 'gallery' | 'all'
+
+  function setMode(next) {
+    mode = next;
+    document.documentElement.classList.toggle('is-all', mode === 'all');
+    if (modeBtn) modeBtn.textContent = mode === 'all' ? 'GALLERY' : 'ALL';
+  }
+
+  function toggleMode() {
+    setMode(mode === 'all' ? 'gallery' : 'all');
+  }
+
+  async function enterFullscreenIfPossible() {
+    if (!fsEl) return;
+    try {
+      if (!document.fullscreenElement && fsEl.requestFullscreen) {
+        await fsEl.requestFullscreen();
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  function toggleBrowserFullscreen() {
+    if (!fsEl) return;
+    if (!document.fullscreenElement) enterFullscreenIfPossible();
+    else document.exitFullscreen?.().catch(() => {});
+  }
+
+  function syncFullscreenClass() {
+    document.documentElement.classList.toggle('is-fullscreen', !!document.fullscreenElement);
+  }
+
+  document.addEventListener('fullscreenchange', syncFullscreenClass);
+  syncFullscreenClass();
+
+  if (modeBtn) modeBtn.addEventListener('click', () => toggleMode());
+
   // -----------------
-  // Fullscreen filmstrip
-  //  - GridのDOMから画像URLを拾って横に流す
-  //  - API差し替え後でも動く
+  // Filmstrip
   // -----------------
-  let fsOpen = false;
-  let fsPaused = false;
-  let fsSpeed = prefersReducedMotion ? 0 : 70; // px/sec
-  let fsOffset = 0;
-  let fsLastTs = 0;
-  let fsCycleWidth = 0;
+  let paused = false;
+  let speed = prefersReducedMotion ? 0 : 70; // px/sec
+  const minSpeed = prefersReducedMotion ? 0 : 60;
+  let offset = 0;
+  let lastTs = 0;
+  let cycleWidth = 0;
   let rafId = 0;
-  let fsItemsLen = 0;
-  let fsItemEls = [];
-  let fsFocusLastTs = 0;
+  let itemEls = [];
+  let focusLastTs = 0;
 
-  const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+  let cycleResizeObserver = null;
+  let cycleMeasureRafId = 0;
 
-  function readItemsFromGridDom() {
-    const links = document.querySelectorAll('.grid a.img');
+  function stopCycleWidthTracking() {
+    if (cycleResizeObserver) {
+      try {
+        cycleResizeObserver.disconnect();
+      } catch {
+        // ignore
+      }
+      cycleResizeObserver = null;
+    }
+    if (cycleMeasureRafId) {
+      window.cancelAnimationFrame(cycleMeasureRafId);
+      cycleMeasureRafId = 0;
+    }
+  }
+
+  function measureCycleWidth(groupEl) {
+    if (!groupEl) return 0;
+    const rectW = groupEl.getBoundingClientRect?.().width || 0;
+    const scrollW = groupEl.scrollWidth || 0;
+    const w = Math.max(rectW, scrollW);
+    // When images are not loaded yet, widths can be 0. Avoid locking cycleWidth to ~0.
+    return w > 20 ? w : 0;
+  }
+
+  function updateCycleWidthFrom(groupEl) {
+    const w = measureCycleWidth(groupEl);
+    if (!w) return false;
+    cycleWidth = Math.max(1, w);
+    return true;
+  }
+
+  function startCycleWidthTracking(groupEl) {
+    stopCycleWidthTracking();
+    if (!groupEl) return;
+
+    // Measure now / next frame.
+    updateCycleWidthFrom(groupEl);
+    cycleMeasureRafId = window.requestAnimationFrame(() => {
+      cycleMeasureRafId = 0;
+      updateCycleWidthFrom(groupEl);
+      updateFocusInfo();
+    });
+
+    // Track size changes as images load.
+    if (window.ResizeObserver) {
+      cycleResizeObserver = new ResizeObserver(() => {
+        // Throttle to animation frame.
+        if (cycleMeasureRafId) return;
+        cycleMeasureRafId = window.requestAnimationFrame(() => {
+          cycleMeasureRafId = 0;
+          updateCycleWidthFrom(groupEl);
+        });
+      });
+      try {
+        cycleResizeObserver.observe(groupEl);
+      } catch {
+        // ignore
+      }
+    }
+
+    // Also listen to image load/error once; this helps in browsers where ResizeObserver
+    // might not fire for intrinsic-size changes in time.
+    const imgs = groupEl.querySelectorAll ? groupEl.querySelectorAll('img') : [];
+    for (const img of imgs) {
+      if (!img) continue;
+      if (img.complete) {
+        updateCycleWidthFrom(groupEl);
+        continue;
+      }
+      img.addEventListener(
+        'load',
+        () => {
+          updateCycleWidthFrom(groupEl);
+        },
+        { once: true },
+      );
+      img.addEventListener(
+        'error',
+        () => {
+          updateCycleWidthFrom(groupEl);
+        },
+        { once: true },
+      );
+    }
+
+    // Safety retry in case network is slow.
+    window.setTimeout(() => {
+      updateCycleWidthFrom(groupEl);
+    }, 1200);
+  }
+
+  function setUi(itemsLen) {
+    if (fsCountEl) fsCountEl.textContent = `${itemsLen} items`;
+    if (fsSpeedEl) fsSpeedEl.textContent = `${Math.round(speed)}px/s`;
+  }
+
+  function readItemsFromAllDom() {
+    const root = document.querySelector('.all-grid');
+    const links = root ? root.querySelectorAll('a.img') : [];
     const items = [];
     let i = 0;
     for (const a of links) {
@@ -160,15 +291,7 @@ const fmtDate = (iso?: string) => {
     return items;
   }
 
-  function setFsUi() {
-    if (fsCountEl) fsCountEl.textContent = `${fsItemsLen} items`;
-    if (fsSpeedEl) fsSpeedEl.textContent = `${Math.round(fsSpeed)}px/s`;
-  }
-
-  // -----------------
-  // Parapara text effect
-  //  - テキスト更新時だけ短時間ランダム文字→確定
-  // -----------------
+  // Parapara
   const PARAPARA_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!?#$%&*+-';
   const paraparaStates = new WeakMap();
 
@@ -214,7 +337,7 @@ const fmtDate = (iso?: string) => {
   }
 
   let lastInfoKey = '';
-  function setInfoFromItem(item) {
+  function setInfo(item) {
     if (!fsInfoEl) return;
     const date = String(item?.date || '').trim();
     const name = String(item?.name || '').trim();
@@ -229,10 +352,10 @@ const fmtDate = (iso?: string) => {
     fsInfoEl.classList.toggle('has-msg', !!message);
   }
 
-  function makeFsItemEl(item) {
+  function makeItemEl(item) {
     const fig = document.createElement('figure');
     fig.className = 'fs-item';
-    fig.dataset.id = String(item?.id || '');
+    fig.dataset.url = String(item?.url || '');
     fig.dataset.date = String(item?.date || '');
     fig.dataset.name = String(item?.name || '');
     fig.dataset.message = String(item?.message || '');
@@ -245,61 +368,53 @@ const fmtDate = (iso?: string) => {
     img.src = item?.url || '';
 
     fig.appendChild(img);
-
     fig.addEventListener('click', () => {
       if (!item?.url) return;
       window.open(item.url, '_blank', 'noreferrer');
     });
-
     return fig;
   }
 
   function renderFilmstrip(items) {
     if (!fsTrackEl) return;
     const safeItems = Array.isArray(items) ? items.filter((x) => x && x.url) : [];
-    fsItemsLen = safeItems.length;
-    setFsUi();
-
-    // 中央の要素は後で計算するので、ここでは一旦プレースホルダを出す
-    setInfoFromItem(null);
+    setUi(safeItems.length);
+    setInfo(null);
 
     if (safeItems.length === 0) {
       fsTrackEl.innerHTML = '<div class="fs-loading">No images</div>';
-      fsCycleWidth = 0;
-      fsItemEls = [];
+      cycleWidth = 0;
+      itemEls = [];
+      stopCycleWidthTracking();
       return;
     }
 
     fsTrackEl.innerHTML = '';
+    // Reset motion state on rerender so we don't keep stale transforms.
+    offset = 0;
+    lastTs = 0;
+    fsTrackEl.style.transform = 'translate3d(0, 0, 0)';
 
     const g1 = document.createElement('div');
     g1.className = 'fs-group';
-    for (const item of safeItems) g1.appendChild(makeFsItemEl(item));
+    for (const item of safeItems) g1.appendChild(makeItemEl(item));
 
     const g2 = document.createElement('div');
     g2.className = 'fs-group';
-    for (const item of safeItems) g2.appendChild(makeFsItemEl(item));
+    for (const item of safeItems) g2.appendChild(makeItemEl(item));
 
     fsTrackEl.appendChild(g1);
     fsTrackEl.appendChild(g2);
 
-    fsItemEls = Array.from(fsTrackEl.querySelectorAll('.fs-item'));
-    fsFocusLastTs = 0;
+    itemEls = Array.from(fsTrackEl.querySelectorAll('.fs-item'));
+    focusLastTs = 0;
 
-    window.requestAnimationFrame(() => {
-      const rect = g1.getBoundingClientRect();
-      const w = Math.max(rect.width || 0, g1.scrollWidth || 0);
-      fsCycleWidth = Math.max(1, w);
-      // レイアウト確定後に「中央の要素」を拾って情報を更新
-      updateFocusInfo();
-    });
+    cycleWidth = 0;
+    startCycleWidthTracking(g1);
   }
 
   function updateFocusInfo() {
-    if (!fsOpen) return;
-    if (!fsEl) return;
-
-    const els = fsItemEls;
+    const els = itemEls;
     if (!els || els.length === 0) return;
 
     const stageW = window.innerWidth || 1;
@@ -318,7 +433,7 @@ const fmtDate = (iso?: string) => {
       }
     }
     if (!bestEl) return;
-    setInfoFromItem({
+    setInfo({
       date: bestEl.dataset.date,
       name: bestEl.dataset.name,
       message: bestEl.dataset.message,
@@ -326,116 +441,84 @@ const fmtDate = (iso?: string) => {
   }
 
   function updateFocusInfoThrottled(ts) {
-    // 毎フレーム getBoundingClientRect を回すのは重いので間引く
-    if (ts - fsFocusLastTs < 120) return;
-    fsFocusLastTs = ts;
+    if (ts - focusLastTs < 120) return;
+    focusLastTs = ts;
     updateFocusInfo();
   }
 
   function tick(ts) {
     rafId = window.requestAnimationFrame(tick);
-    if (!fsOpen) return;
+    if (mode !== 'gallery') return;
     if (!fsTrackEl) return;
 
-    if (!fsLastTs) fsLastTs = ts;
-    const dt = Math.min(0.05, Math.max(0, (ts - fsLastTs) / 1000));
-    fsLastTs = ts;
+    if (!lastTs) lastTs = ts;
+    const dt = Math.min(0.05, Math.max(0, (ts - lastTs) / 1000));
+    lastTs = ts;
 
-    if (!fsPaused && fsSpeed > 0 && fsCycleWidth > 0) {
-      fsOffset += dt * fsSpeed;
-      if (fsOffset >= fsCycleWidth) fsOffset -= fsCycleWidth;
-      fsTrackEl.style.transform = `translate3d(${-fsOffset}px, 0, 0)`;
+    if (!paused && speed > 0 && cycleWidth > 0) {
+      offset += dt * speed;
+      if (offset >= cycleWidth) offset -= cycleWidth;
+      fsTrackEl.style.transform = `translate3d(${-offset}px, 0, 0)`;
     }
 
     updateFocusInfoThrottled(ts);
   }
 
-  async function enterFullscreenIfPossible() {
-    if (!fsEl) return;
-    try {
-      if (!document.fullscreenElement && fsEl.requestFullscreen) {
-        await fsEl.requestFullscreen();
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  function openFs({ requestFullscreen = false } = {}) {
-    if (!fsEl) return;
-    fsOpen = true;
-    fsEl.hidden = false;
-    fsEl.setAttribute('aria-hidden', 'false');
-    document.documentElement.classList.add('is-fs');
-
-    const items = readItemsFromGridDom();
-    renderFilmstrip(items);
-    fsPaused = false;
-    fsOffset = 0;
-    fsLastTs = 0;
-
-    if (!rafId) rafId = window.requestAnimationFrame(tick);
-    if (requestFullscreen) enterFullscreenIfPossible();
-  }
-
-  function closeFs() {
-    if (!fsEl) return;
-    fsOpen = false;
-    fsEl.hidden = true;
-    fsEl.setAttribute('aria-hidden', 'true');
-    document.documentElement.classList.remove('is-fs');
-    fsPaused = false;
-    fsOffset = 0;
-    fsLastTs = 0;
-    lastInfoKey = '';
-    fsItemEls = [];
-    fsItemsLen = 0;
-    if (document.fullscreenElement && document.exitFullscreen) {
-      document.exitFullscreen().catch(() => {});
-    }
-  }
-
-  function toggleFs() {
-    if (fsOpen) closeFs();
-    else openFs({ requestFullscreen: true });
-  }
-
-  if (fsBtn) fsBtn.addEventListener('click', () => toggleFs());
-  if (fsCloseBtn) fsCloseBtn.addEventListener('click', () => closeFs());
+  // Initial render from SSR DOM
+  renderFilmstrip(readItemsFromAllDom());
+  setMode('gallery');
+  if (!rafId) rafId = window.requestAnimationFrame(tick);
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'f' || e.key === 'F') {
       e.preventDefault();
-      toggleFs();
+      toggleBrowserFullscreen();
       return;
     }
-    if (!fsOpen) return;
+
     if (e.key === 'Escape') {
       e.preventDefault();
-      closeFs();
+      toggleMode();
       return;
     }
+
+    if (mode !== 'gallery') return;
+
     if (e.key === ' ') {
       e.preventDefault();
-      fsPaused = !fsPaused;
+      paused = !paused;
       return;
     }
+
     if (e.key === 'ArrowRight') {
       e.preventDefault();
-      fsSpeed = clamp(fsSpeed + 10, 0, 300);
-      setFsUi();
+      speed = clamp(speed + 10, minSpeed, 300);
+      setUi(readItemsFromAllDom().length);
       return;
     }
+
     if (e.key === 'ArrowLeft') {
       e.preventDefault();
-      fsSpeed = clamp(fsSpeed - 10, 0, 300);
-      setFsUi();
+      speed = clamp(speed - 10, minSpeed, 300);
+      setUi(readItemsFromAllDom().length);
       return;
     }
   });
 
+  // -----------------
+  // Auto refresh
+  // -----------------
+  let lastSig = '';
+  function signatureForApiItems(items) {
+    const arr = Array.isArray(items) ? items : [];
+    const top = arr
+      .slice(0, 60)
+      .map((x) => String(x?.externalId || x?.imageUrl || x?.createdAt || ''))
+      .join('|');
+    return `${arr.length}::${top}`;
+  }
+
   async function refreshFromApi() {
-    if (!grid) return;
     try {
       const res = await fetch(`/api/crystallizer/gallery?limit=240&t=${Date.now()}`, {
         cache: 'no-store',
@@ -446,8 +529,33 @@ const fmtDate = (iso?: string) => {
       const items = Array.isArray(json?.items) ? json.items : [];
       if (items.length === 0) return;
 
-      // Re-render (replace static HTML) so the list can grow without redeploy.
-      grid.innerHTML = '';
+      const sig = signatureForApiItems(items);
+      if (sig === lastSig) return;
+      lastSig = sig;
+
+      // remember focus url
+      let prevFocusUrl = '';
+      if (mode === 'gallery' && itemEls?.length) {
+        const stageW = window.innerWidth || 1;
+        const centerX = stageW * 0.5;
+        let bestEl = null;
+        let bestDist = Infinity;
+        for (const el of itemEls) {
+          const r = el.getBoundingClientRect();
+          if (r.right <= 0 || r.left >= stageW) continue;
+          const cx = (r.left + r.right) * 0.5;
+          const d = Math.abs(cx - centerX);
+          if (d < bestDist) {
+            bestDist = d;
+            bestEl = el;
+          }
+        }
+        prevFocusUrl = bestEl?.dataset?.url || '';
+      }
+
+      // render list
+      if (!allGridEl) return;
+      allGridEl.innerHTML = '';
       for (const item of items) {
         const imgUrlRaw = item?.imageUrl || '';
         const imgUrl = imgUrlRaw ? `${imgUrlRaw}?w=900&q=80&auto=format` : '';
@@ -498,19 +606,52 @@ const fmtDate = (iso?: string) => {
           sp.textContent = String(item.message);
           body.appendChild(sp);
         }
+
         a.appendChild(body);
         article.appendChild(a);
-        grid.appendChild(article);
+        allGridEl.appendChild(article);
       }
 
-      if (countEl) countEl.textContent = `${items.length} items`;
+      setUi(items.length);
+
+      // rerender filmstrip
+      const next = readItemsFromAllDom();
+      renderFilmstrip(next);
+
+      if (mode === 'gallery' && prevFocusUrl && fsTrackEl && cycleWidth > 0) {
+        window.requestAnimationFrame(() => {
+          const el = fsTrackEl.querySelector(`.fs-item[data-url="${CSS.escape(prevFocusUrl)}"]`);
+          if (!el) return;
+          const r = el.getBoundingClientRect();
+          const cx = (r.left + r.right) * 0.5;
+          const desired = (window.innerWidth || 1) * 0.5;
+          const delta = cx - desired;
+          offset = (offset + delta) % cycleWidth;
+          if (offset < 0) offset += cycleWidth;
+          fsTrackEl.style.transform = `translate3d(${-offset}px, 0, 0)`;
+        });
+      }
     } catch {
       // ignore
     }
   }
 
-  // Slight delay to avoid fighting initial paint.
-  window.setTimeout(refreshFromApi, 50);
+  function startAutoRefresh() {
+    const intervalMs = 30_000;
+    window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      refreshFromApi();
+    }, intervalMs);
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') refreshFromApi();
+    });
+
+    // first refresh
+    window.setTimeout(() => refreshFromApi(), 50);
+  }
+
+  startAutoRefresh();
 </script>
 
 <style lang="scss" is:global>
@@ -524,71 +665,6 @@ const fmtDate = (iso?: string) => {
     left: 0;
   }
 
-  .head {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 16px;
-    // margin-bottom: 24px;
-    position: absolute;
-    top: 0;
-    left: 0;
-    h2 {
-      font-size: 14px;
-      letter-spacing: 0.04em;
-      margin: 0;
-    }
-    * {
-      background: #fff;
-    }
-  }
-
-  .meta {
-    display: flex;
-    gap: 14px;
-    align-items: baseline;
-
-    a {
-      font-size: 10px;
-      opacity: 0.85;
-      text-decoration: underline;
-    }
-
-    .count {
-      font-size: 10px;
-      opacity: 0.65;
-    }
-  }
-
-  .empty {
-    font-size: 12px;
-    opacity: 0.8;
-    margin: 24px 0 40px;
-  }
-
-  .grid {
-    display: flex;
-    width: 100vw;
-    flex-wrap: wrap;
-  }
-
-  .img {
-    img {
-      width: 12.5vw;
-      max-width: 960px;
-      max-height: 960px;
-      object-fit: cover;
-      display: block;
-      background-color: #000;
-      @include mq(sp) {
-        width: 50vw;
-      }
-    }
-    position: relative;
-    
-  }
-
-  /* Fullscreen overlay */
   .fs {
     position: fixed;
     inset: 0;
@@ -607,19 +683,11 @@ const fmtDate = (iso?: string) => {
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    z-index: 2;
+    z-index: 3;
     font-family: "Space Mono", monospace;
   }
 
-  .fs-hint {
-    font-size: 10px;
-    opacity: 0.75;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .fs-close {
+  .mode-btn {
     font-size: 10px;
     letter-spacing: 0.08em;
     border: 1px solid rgba(255, 255, 255, 0.32);
@@ -628,6 +696,14 @@ const fmtDate = (iso?: string) => {
     padding: 6px 10px;
     cursor: pointer;
     backdrop-filter: blur(10px);
+  }
+
+  .fs-hint {
+    font-size: 10px;
+    opacity: 0.75;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .fs-meta {
@@ -639,6 +715,28 @@ const fmtDate = (iso?: string) => {
     pointer-events: none;
   }
 
+  .make-crystal {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    z-index: 3;
+    font-family: "Space Mono", monospace;
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    border: 1px solid rgba(255, 255, 255, 0.32);
+    background: rgba(0, 0, 0, 0.25);
+    color: #000;
+    padding: 20px 42px;
+    text-decoration: none;
+    backdrop-filter: blur(10px);
+    background-color: #d4ff00;
+    border-radius: 4px;
+    @include mq(sp) {
+        text-align: center;
+        width: calc(100% - 24px);
+    }
+  }
+
   .fs-info {
     position: absolute;
     left: 50%;
@@ -647,20 +745,12 @@ const fmtDate = (iso?: string) => {
     z-index: 2;
     width: min(720px, calc(100vw - 32px));
     text-align: center;
-    font-family: "Space Mono", "Zen Kaku Gothic New", "Noto Sans JP", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: "Space Mono", "Zen Kaku Gothic New", "Noto Sans JP", system-ui, -apple-system,
+      BlinkMacSystemFont, sans-serif;
     color: rgba(255, 255, 255, 1);
     pointer-events: none;
     mix-blend-mode: difference;
   }
-
-  // .fs-info::before {
-  //   content: "";
-  //   position: absolute;
-  //   inset: -28px -30px;
-  //   background: radial-gradient(120% 140% at 50% 45%, rgba(0,0,0,0.62), rgba(0,0,0,0.18) 55%, rgba(0,0,0,0.0) 78%);
-  //   filter: blur(10px);
-  //   mask-image: radial-gradient(120% 140% at 50% 50%, rgba(0,0,0,1) 0%, rgba(0,0,0,0.0) 78%);
-  // }
 
   .fs-info > * {
     position: relative;
@@ -741,6 +831,39 @@ const fmtDate = (iso?: string) => {
     padding-left: 6vw;
   }
 
+  .all-view {
+    position: absolute;
+    inset: 0;
+    overflow: auto;
+    padding: 56px 10px 10px;
+    display: none;
+  }
+
+  .all-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 0;
+  }
+
+  @media (max-width: 640px) {
+    .all-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .img {
+    position: relative;
+    display: block;
+
+    img {
+      width: 100%;
+      height: auto;
+      object-fit: cover;
+      display: block;
+      background-color: #000;
+    }
+  }
+
   .ph {
     width: 100%;
     height: 100%;
@@ -760,14 +883,20 @@ const fmtDate = (iso?: string) => {
     font-size: 10px;
     line-height: 1.4;
     font-family: "Space Mono", "Zen Kaku Gothic New", monospace;
-    color: #fff
+    color: #fff;
   }
 
-  .msg {
-    margin-top: 10px;
-    font-size: 11px;
-    opacity: 0.85;
-    white-space: pre-wrap;
-    word-break: break-word;
+  html.is-all .fs-stage,
+  html.is-all .fs-info {
+    display: none;
+  }
+
+  html.is-all .all-view {
+    display: block;
+  }
+
+  html.is-fullscreen .fs-ui,
+  html.is-fullscreen .make-crystal {
+    display: none;
   }
 </style>
