@@ -154,6 +154,9 @@ const fmtDate = (iso?: string) => {
   let speed = prefersReducedMotion ? 0 : 70; // px/sec
   const minSpeed = prefersReducedMotion ? 0 : 60;
   let offset = 0;
+  // One-time entrance: start with the track shifted to the right so items enter from the right edge.
+  let introShift = 0;
+  let didInitialEntrance = false;
   let lastTs = 0;
   let cycleWidth = 0;
   let rafId = 0;
@@ -393,7 +396,13 @@ const fmtDate = (iso?: string) => {
     // Reset motion state on rerender so we don't keep stale transforms.
     offset = 0;
     lastTs = 0;
-    fsTrackEl.style.transform = 'translate3d(0, 0, 0)';
+    if (!didInitialEntrance) {
+      introShift = window.innerWidth || 0;
+      didInitialEntrance = true;
+    } else {
+      introShift = 0;
+    }
+    fsTrackEl.style.transform = `translate3d(${introShift}px, 0, 0)`;
 
     const g1 = document.createElement('div');
     g1.className = 'fs-group';
@@ -458,7 +467,8 @@ const fmtDate = (iso?: string) => {
     if (!paused && speed > 0 && cycleWidth > 0) {
       offset += dt * speed;
       if (offset >= cycleWidth) offset -= cycleWidth;
-      fsTrackEl.style.transform = `translate3d(${-offset}px, 0, 0)`;
+      // Translate with an initial right-shift so images enter from the right edge on first load.
+      fsTrackEl.style.transform = `translate3d(${introShift - offset}px, 0, 0)`;
     }
 
     updateFocusInfoThrottled(ts);
