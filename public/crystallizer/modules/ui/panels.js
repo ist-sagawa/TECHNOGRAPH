@@ -707,6 +707,8 @@ async function sendToSanityFromCanvas(meta = {}) {
   const pg = State.layers.composite;
   if (!pg || !pg.canvas) return { ok: false, error: 'No composite canvas' };
 
+  const prevTransparentBg = !!State.transparentBg;
+
   // If BG is not set, pick a random BG (and wait for the image to load) before exporting.
   if (!State.canvasBgImg && Array.isArray(State.bgImages) && State.bgImages.length > 0) {
     await new Promise((resolve) => {
@@ -751,12 +753,14 @@ async function sendToSanityFromCanvas(meta = {}) {
     }
   };
 
-  // 1) Normal export (BG as current state)
+  // 1) Background export (force transparentBg=false temporarily)
+  State.transparentBg = false;
+  State.needsCompositeUpdate = true;
+  try { renderComposite(); } catch { }
   const pngBlob = await captureCompositePngBlob();
   if (!pngBlob) return { ok: false, error: 'Failed to create PNG blob' };
 
   // 2) Transparent export (force transparentBg=true temporarily)
-  const prevTransparentBg = !!State.transparentBg;
   State.transparentBg = true;
   State.needsCompositeUpdate = true;
   const pngTransparentBlob = await captureCompositePngBlob();
