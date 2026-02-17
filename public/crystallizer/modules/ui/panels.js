@@ -591,6 +591,20 @@ export function initDownloadPanel(container) {
   UIr.sendNameInput = nameInput;
   UIr.sendMessageInput = msgInput;
 
+  // SP: place Back button under SEND
+  const backBtn = window.createButton('BACK').parent(col);
+  backBtn.addClass('send-btn');
+  backBtn.addClass('back-to-gallery-btn');
+  backBtn.elt.setAttribute('title', 'Back to gallery');
+  backBtn.mousePressed(() => {
+    cancelImagePlacing();
+    try {
+      window.location.href = '/crystallizer/';
+    } catch {
+      // noop
+    }
+  });
+
   const bgBtn = window.createButton('ALPHA').parent(row);
   bgBtn.addClass('download-toggle');
 

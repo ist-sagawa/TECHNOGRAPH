@@ -667,6 +667,20 @@ input[type="range"]::-moz-range-thumb {
   cursor: pointer;
 }
 
+/* Back button under SEND (SP only) */
+.back-to-gallery-btn {
+  display: none;
+  background: #000;
+  color: #fff;
+  -webkit-text-fill-color: #fff;
+}
+
+@media screen and (max-width: 768px) {
+  .back-to-gallery-btn {
+    display: block;
+  }
+}
+
 .send-btn:hover {
   background: #ccc;
 }
