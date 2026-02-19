@@ -133,20 +133,77 @@ function syncCanvasContainerSize() {
   const el = document.getElementById('canvas-container');
   if (!el) return;
 
-  // Base size is the "square" dimension used in the Figma layout.
-  const base = 960;
-  const w = Number(window.width || State.canvasW || base);
-  const h = Number(window.height || State.canvasH || base);
+  // Base size is the "square" dimension used in the layout.
+  // On desktop, adapt it to the current viewport height so the whole app fits more often.
+  const baseMax = 860;
+  const basePreferredMin = 600;
+  const baseHardMin = 420;
+  const appEl = document.getElementById('app-layout');
+  const pads = (() => {
+    if (!appEl) return { padX: 0, padY: 0, gapX: 0 };
+    try {
+      const cs = window.getComputedStyle(appEl);
+      const pt = parseFloat(cs.paddingTop || '0') || 0;
+      const pb = parseFloat(cs.paddingBottom || '0') || 0;
+      const pl = parseFloat(cs.paddingLeft || '0') || 0;
+      const pr = parseFloat(cs.paddingRight || '0') || 0;
+
+      // gap (flex) can be expressed as `gap` or columnGap depending on browser.
+      const gap = parseFloat(cs.columnGap || cs.gap || '0') || 0;
+      return { padX: pl + pr, padY: pt + pb, gapX: gap };
+    } catch {
+      return { padX: 0, padY: 0, gapX: 0 };
+    }
+  })();
+  const vh = Number(window.innerHeight || baseMax);
+  const vw = Number(window.innerWidth || baseMax);
+
+  // Height constraint (desktop + mobile)
+  const availH = Math.max(320, vh - pads.padY);
+  const baseFromH = Math.floor(Math.min(baseMax, availH));
+
+  // Width constraint (desktop side-by-side only)
+  const isNarrow = !!(window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
+  let baseFromW = baseMax;
+  if (!isNarrow) {
+    const uiPanelEl = document.getElementById('ui-panel');
+    const uiW = (() => {
+      if (!uiPanelEl) return 0;
+      try {
+        const cs = window.getComputedStyle(uiPanelEl);
+        return parseFloat(cs.width || '0') || uiPanelEl.getBoundingClientRect().width || 0;
+      } catch {
+        return uiPanelEl.getBoundingClientRect().width || 0;
+      }
+    })();
+
+    const availW = Math.max(320, vw - pads.padX - pads.gapX - uiW);
+    baseFromW = Math.floor(Math.min(baseMax, availW));
+  }
+
+  // Prefer the larger "desktop" size, but allow shrinking below preferred minimum if needed to fit.
+  const baseFit = Math.min(baseFromH, baseFromW);
+  const base = Math.max(baseHardMin, Math.min(baseMax, Math.floor(baseFit)));
+  const baseFinal = base < basePreferredMin ? base : Math.max(basePreferredMin, base);
+  if (appEl) {
+    try {
+      appEl.style.setProperty('--app-base', `${baseFinal}px`);
+    } catch {
+      // ignore
+    }
+  }
+  const w = Number(window.width || State.canvasW || baseFinal);
+  const h = Number(window.height || State.canvasH || baseFinal);
   if (!w || !h) return;
 
-  let cw = base;
-  let ch = base;
+  let cw = baseFinal;
+  let ch = baseFinal;
   if (w >= h) {
-    cw = base;
-    ch = Math.max(1, Math.round(base * (h / w)));
+    cw = baseFinal;
+    ch = Math.max(1, Math.round(baseFinal * (h / w)));
   } else {
-    ch = base;
-    cw = Math.max(1, Math.round(base * (w / h)));
+    ch = baseFinal;
+    cw = Math.max(1, Math.round(baseFinal * (w / h)));
   }
 
   el.style.setProperty('--canvas-container-w', `${cw}px`);
@@ -224,6 +281,19 @@ function syncPaintingOverlay() {
   // CSS側のネスト/ビルド差異があっても確実に制御する
   el.style.display = on ? 'block' : 'none';
 }
+
+function syncSendingOverlay() {
+  const el = document.getElementById('sending-indicator');
+  if (!el) return;
+  const on = !!State.isSending;
+  el.classList.toggle('active', on);
+  el.style.display = on ? 'block' : 'none';
+}
+
+window.setSendingOverlay = (on) => {
+  State.isSending = !!on;
+  syncSendingOverlay();
+};
 
 window.incrementTask = () => {
   State.activeTaskCount = Math.max(0, Number(State.activeTaskCount || 0) + 1);
@@ -410,6 +480,15 @@ window.setup = () => {
     document.getElementById('canvas-container').appendChild(el);
   }
   syncPaintingOverlay();
+
+  // Sending indicator (HTML/CSS)
+  if (!document.getElementById('sending-indicator')) {
+    const el = document.createElement('div');
+    el.id = 'sending-indicator';
+    el.textContent = 'SENDING';
+    document.getElementById('canvas-container').appendChild(el);
+  }
+  syncSendingOverlay();
 
   syncCanvasSizeLabel();
   syncCanvasContainerSize();

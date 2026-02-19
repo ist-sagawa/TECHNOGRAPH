@@ -558,6 +558,10 @@ export function initDownloadPanel(container) {
   sendBtn.addClass('send-btn');
   sendBtn.elt.setAttribute('title', 'Send the current image to Sanity');
   sendBtn.mousePressed(async () => {
+    // Guard: on some mobile browsers/touch stacks, handlers can fire twice.
+    if (State.isSending) return;
+    State.isSending = true;
+    try { window.setSendingOverlay?.(true); } catch { }
     cancelImagePlacing();
     const originalLabel = sendBtn.elt.textContent;
     sendBtn.elt.textContent = 'SENDING…';
@@ -585,6 +589,9 @@ export function initDownloadPanel(container) {
         sendBtn.elt.textContent = originalLabel;
         sendBtn.elt.disabled = false;
       }, 1200);
+    } finally {
+      try { window.setSendingOverlay?.(false); } catch { }
+      State.isSending = false;
     }
   });
 
@@ -799,7 +806,14 @@ async function sendToSanityFromCanvas(meta = {}) {
     body: fd
   });
 
-  const json = await res.json().catch(() => null);
+  const responseText = await res.text().catch(() => '');
+  const json = (() => {
+    try {
+      return responseText ? JSON.parse(responseText) : null;
+    } catch {
+      return null;
+    }
+  })();
   if (!res.ok) {
     const step = json?.step;
     const status = json?.status || res.status;
@@ -808,7 +822,23 @@ async function sendToSanityFromCanvas(meta = {}) {
       json?.response?.message ||
       json?.response?.error?.description ||
       json?.responseText ||
+      responseText ||
       'Unknown error';
+
+    // Dev hint: Pages Functions are not available in plain `astro dev`.
+    try {
+      const isLocalhost = ['localhost', '127.0.0.1'].includes(String(window.location.hostname || ''));
+      if (isLocalhost && Number(res.status) === 404) {
+        window.alert(
+          'UPLOAD ENDPOINT NOT FOUND (404)\n\n' +
+            'This usually means you opened the site via `npm run dev` (Astro only).\n' +
+            'For /api/crystallizer/upload (Cloudflare Pages Functions) in local dev, run:\n\n' +
+            '  npm run dev\n' +
+            '  npx -y wrangler pages dev --proxy 4321\n\n' +
+            'and open the Wrangler URL (not the Astro port).'
+        );
+      }
+    } catch {}
 
     console.error('Sanity upload failed', { status, step, json });
     try {
@@ -818,7 +848,7 @@ async function sendToSanityFromCanvas(meta = {}) {
     return { ok: false, status, step, response: json };
   }
   console.log('Sanity upload ok', json);
-  return json;
+  return json || { ok: true };
 }
 window.sendToSanityFromCanvas = sendToSanityFromCanvas;
 
